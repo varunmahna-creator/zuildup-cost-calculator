@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZuildUp — Cost Calculator</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#F9FAF7;color:#333}
+  .header{background:linear-gradient(135deg,#0A1F44,#1a3a6e);padding:24px 0;text-align:center}
+  .header h1{color:#C9A24D;font-size:24px;letter-spacing:1px}
+  .header p{color:#F2E8D5;font-size:13px;margin-top:4px}
+  .container{max-width:740px;margin:24px auto;padding:0 16px}
+  .card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(10,31,68,.08);padding:24px 28px;margin-bottom:20px}
+  .card h2{color:#0A1F44;font-size:16px;margin-bottom:14px;border-bottom:2px solid #C9A24D;padding-bottom:6px}
+  label{display:block;font-weight:600;color:#0A1F44;margin-bottom:5px;font-size:13px}
+  .hint{font-weight:400;color:#5E6D82;font-size:11px}
+  input[type=number],select{width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;transition:border .2s}
+  input:focus,select:focus{outline:none;border-color:#C9A24D}
+  .row{display:flex;gap:14px}.row>div{flex:1}
+  .toggle-row{display:flex;gap:20px;margin-bottom:14px;flex-wrap:wrap}
+  .toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0A1F44;font-weight:600}
+  .toggle input{display:none}
+  .toggle .box{width:40px;height:22px;background:#ccc;border-radius:11px;position:relative;transition:background .2s}
+  .toggle input:checked+.box{background:#C9A24D}
+  .toggle .box::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s}
+  .toggle input:checked+.box::after{transform:translateX(18px)}
+  .btn{width:100%;padding:13px;background:#0A1F44;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:background .2s}
+  .btn:hover{background:#142d5a}
+  .hidden{display:none!important}
+  #results{display:none}
+  .summary-bar{background:linear-gradient(135deg,#0A1F44,#1a3a6e);color:#fff;border-radius:12px;padding:22px 24px;text-align:center;margin-bottom:20px}
+  .summary-bar .total-label{font-size:12px;color:#C9A24D;text-transform:uppercase;letter-spacing:2px}
+  .summary-bar .total-amount{font-size:34px;font-weight:800;margin:6px 0 4px;color:#fff}
+  .summary-bar .pkg-label{font-size:13px;color:#F2E8D5}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th{background:#0A1F44;color:#fff;padding:9px 10px;font-size:12px;text-align:left}
+  th.r,td.r{text-align:right!important}
+  td{padding:8px 10px;font-size:12px;border-bottom:1px solid #eee;color:#333}
+  tr.zone-hdr td{background:#0A1F44;color:#C9A24D;font-weight:700;font-size:12px}
+  tr.zone-total td{background:#C9A24D22;font-weight:700;color:#0A1F44}
+  tr.grand-total td{background:#C9A24D;color:#fff;font-weight:700;font-size:14px}
+  tr.sub-total td{background:#f0f0ee;font-weight:600}
+  tr.lift-row td{font-style:italic;color:#5E6D82}
+  .zone-tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;margin-right:4px}
+  .za{background:#0A1F44}.zb{background:#C9A24D}.zc{background:#5E6D82}.zd{background:#8B7355}
+  .footer{text-align:center;padding:18px;font-size:11px;color:#5E6D82}
+  .footer a{color:#C9A24D;text-decoration:none}
+  .note{font-size:11px;color:#5E6D82;margin-top:10px;line-height:1.6}
+  .params{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:10px;font-size:12px;color:#5E6D82}
+  .params b{color:#0A1F44}
+</style>
+</head>
+<body>
+<div class="header"><h1>ZuildUp</h1><p>Construction Cost Calculator</p></div>
+<div class="container">
+
+<!-- INPUT -->
+<div class="card" id="form-card">
+  <h2>Project Details</h2>
+
+  <div class="row">
+    <div>
+      <label>Plot Size <span class="hint">(sq. yards)</span></label>
+      <input type="number" id="plotSize" value="240" min="20" max="2000" step="5">
+    </div>
+    <div>
+      <label>Plot Breadth <span class="hint">(ft)</span></label>
+      <input type="number" id="breadth" value="36" min="10" max="200" step="0.5">
+    </div>
+    <div>
+      <label>Coverage <span class="hint">(%)</span></label>
+      <input type="number" id="coverage" value="75" min="30" max="100" step="5">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Building Type</label>
+      <select id="buildType" onchange="onBuildTypeChange()">
+        <option value="stilt" selected>With Stilt (Package)</option>
+        <option value="nostilt">Without Stilt (Package)</option>
+        <option value="structure">Structure Only</option>
+      </select>
+    </div>
+    <div>
+      <label id="floorsLabel">Floors above Stilt</label>
+      <select id="floors">
+        <option value="1">Stilt + 1 Floor</option>
+        <option value="2">Stilt + 2 Floors</option>
+        <option value="3">Stilt + 3 Floors</option>
+        <option value="4" selected>Stilt + 4 Floors</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="packageRow">
+    <label>Package</label>
+    <select id="package">
+      <option value="premium">Premium — ₹1,950/sqft</option>
+      <option value="platinum" selected>Platinum — ₹2,850/sqft</option>
+      <option value="royal">Royal — ₹4,100/sqft</option>
+    </select>
+  </div>
+
+  <div id="structureRateRow" class="hidden">
+    <label>Structure Rate <span class="hint">(₹ per sq.ft — Zone A)</span></label>
+    <input type="number" id="structureRate" value="1250" min="500" max="5000" step="50">
+  </div>
+
+  <div class="toggle-row">
+    <label class="toggle"><input type="checkbox" id="basement" checked><span class="box"></span> Basement</label>
+    <label class="toggle"><input type="checkbox" id="lift" checked><span class="box"></span> Lift (₹12,00,000)</label>
+  </div>
+
+  <button class="btn" onclick="calculate()">Calculate Cost</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="summary-bar">
+    <div class="total-label">Estimated Grand Total</div>
+    <div class="total-amount" id="grandTotal"></div>
+    <div class="pkg-label" id="pkgSummary"></div>
+  </div>
+
+  <div class="card">
+    <h2>Area Calculation</h2>
+    <div class="params" id="plotParams"></div>
+    <table><thead><tr><th>Area</th><th>Description</th><th class="r">Est. Size (Sq.Ft.)</th></tr></thead>
+    <tbody id="areaBody"></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Cost Estimate</h2>
+    <table><thead><tr><th>Zone</th><th>Area (Sq.Ft.)</th><th class="r">Rate / Sq.Ft.</th><th class="r">Amount</th></tr></thead>
+    <tbody id="costBody"></tbody></table>
+    <p class="note">• Budgetary estimate — actual cost may vary based on final area &amp; specifications.<br>
+    • Govt. charges, registration &amp; approval fees not included.<br>
+    • Quotation valid for 30 days. Payment: 10% advance, balance per construction milestones.</p>
+  </div>
+
+  <button class="btn" onclick="doReset()" style="background:#5E6D82">← Recalculate</button>
+</div>
+</div>
+
+<div class="footer">
+  ZuildUp — Premium Home Construction &amp; Building Services<br>
+  <a href="tel:+919217263051">+91 92172 63051</a> · <a href="mailto:info@zuildup.com">info@zuildup.com</a> · <a href="https://www.zuildup.com" target="_blank">www.zuildup.com</a><br>
+  Delhi · Gurugram · Noida · Ghaziabad · Faridabad
+</div>
+
+<script>
+const PKG = {
+  premium:  { rate: 1950, label: 'Premium' },
+  platinum: { rate: 2850, label: 'Platinum' },
+  royal:    { rate: 4100, label: 'Royal' }
+};
+const C_RATE = 1250, D_RATE = 1000, LIFT_COST = 1200000;
+const STRUCT_B_RATE = 500;     // Structure Zone B fixed rate
+const BALCONY_DEPTH = 5;
+const RAMP_DEPTH = 10;
+const SHAFT_PER_FLOOR = 20;
+const STAIRCASE_PER_FLOOR = 100;
+const LIFT_PER_FLOOR = 25;
+const WATER_TANK = 200;
+const MUMTY = 180;
+
+function fmt(n) {
+  let s = Math.round(n).toString();
+  if (s.length <= 3) return '₹' + s;
+  let l = s.slice(-3), r = s.slice(0, -3), p = [];
+  while (r.length > 2) { p.unshift(r.slice(-2)); r = r.slice(0, -2); }
+  if (r) p.unshift(r);
+  return '₹' + p.join(',') + ',' + l;
+}
+function ni(v) { return Math.round(v).toLocaleString('en-IN'); }
+
+function onBuildTypeChange() {
+  const bt = document.getElementById('buildType').value;
+  const fl = document.getElementById('floors');
+  const lbl = document.getElementById('floorsLabel');
+  const pkgRow = document.getElementById('packageRow');
+  const strRow = document.getElementById('structureRateRow');
+
+  if (bt === 'stilt') {
+    lbl.textContent = 'Floors above Stilt';
+    fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
+    pkgRow.classList.remove('hidden');
+    strRow.classList.add('hidden');
+  } else if (bt === 'nostilt') {
+    lbl.textContent = 'Number of Floors';
+    fl.innerHTML = '<option value="1">Ground only</option><option value="2">Ground + 1</option><option value="3">Ground + 2</option><option value="4" selected>Ground + 3</option><option value="5">Ground + 4</option>';
+    pkgRow.classList.remove('hidden');
+    strRow.classList.add('hidden');
+  } else {
+    // structure
+    lbl.textContent = 'Floors above Stilt';
+    fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
+    pkgRow.classList.add('hidden');
+    strRow.classList.remove('hidden');
+  }
+}
+
+function calculate() {
+  const bt = document.getElementById('buildType').value;
+  if (bt === 'structure') return calcStructure();
+  return calcPackage();
+}
+
+// ════════════════════════════════════════════
+//  PACKAGE MODE (With Stilt / Without Stilt)
+// ════════════════════════════════════════════
+function calcPackage() {
+  const bt        = document.getElementById('buildType').value;
+  const hasStilt  = bt === 'stilt';
+  const plotSqYd  = parseInt(document.getElementById('plotSize').value) || 240;
+  const breadth   = parseFloat(document.getElementById('breadth').value) || 36;
+  const coverPct  = parseFloat(document.getElementById('coverage').value) || 75;
+  const numFloors = parseInt(document.getElementById('floors').value);
+  const pkg       = document.getElementById('package').value;
+  const hasBsmt   = document.getElementById('basement').checked;
+  const hasLift   = document.getElementById('lift').checked;
+  const p = PKG[pkg];
+  const bRate = Math.round(p.rate * 0.50);
+
+  const plotSqFt = plotSqYd * 9;
+  const depth = Math.round(plotSqFt / breadth);
+  const floorArea = Math.round(plotSqFt * coverPct / 100);
+
+  const totalLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0);
+
+  // ZONE A
+  const zoneAFloors = [];
+  if (hasBsmt) zoneAFloors.push({ name: 'Basement', desc: 'Enclosed Area', area: floorArea });
+  const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+
+  const staircaseTotal = STAIRCASE_PER_FLOOR * totalLevels;
+  const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * totalLevels : 0;
+  const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + staircaseTotal + liftAreaTotal + WATER_TANK;
+
+  // ZONE B
+  const stiltArea = hasStilt ? (plotSqFt - STAIRCASE_PER_FLOOR - (hasLift ? LIFT_PER_FLOOR : 0)) : 0;
+  const balconyPerFloor = breadth * BALCONY_DEPTH;
+  const balconyTotal = balconyPerFloor * numFloors;
+  const totalB = stiltArea + balconyTotal + MUMTY;
+
+  // ZONE C
+  const terrace = floorArea + balconyPerFloor - STAIRCASE_PER_FLOOR - (hasLift ? LIFT_PER_FLOOR : 0);
+  const totalC = terrace;
+
+  // ZONE D
+  const ramp = breadth * RAMP_DEPTH;
+  const shafts = SHAFT_PER_FLOOR * numFloors;
+  const totalD = Math.round(ramp + shafts);
+
+  // COSTS
+  const costA = totalA * p.rate;
+  const costB = totalB * bRate;
+  const costC = totalC * C_RATE;
+  const costD = totalD * D_RATE;
+  const subtotal = costA + costB + costC + costD;
+  const liftCost = hasLift ? LIFT_COST : 0;
+  const grand = subtotal + liftCost;
+
+  // DISPLAY
+  const buildDesc = hasStilt ? `Stilt + ${numFloors} Floors` : `Ground + ${numFloors - 1}`;
+  document.getElementById('grandTotal').textContent = fmt(grand) + '/-';
+  document.getElementById('pkgSummary').textContent =
+    `${p.label} Package · ${plotSqYd} sq.yd · ${buildDesc}` +
+    (hasBsmt ? ' + Basement' : '') + (hasLift ? ' + Lift' : '');
+
+  document.getElementById('plotParams').innerHTML =
+    `<span><b>Plot:</b> ${plotSqYd} Sq.Yd / ${ni(plotSqFt)} Sq.Ft.</span>` +
+    `<span><b>Dims:</b> ${breadth}ft × ${depth}ft</span>` +
+    `<span><b>Coverage:</b> ${coverPct}%</span>` +
+    `<span><b>Floor Area:</b> ${ni(floorArea)} sq.ft</span>`;
+
+  // AREA TABLE
+  let ah = '';
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag za">A</span> Zone A — 100% (₹${ni(p.rate)}/sqft)</td></tr>`;
+  zoneAFloors.forEach(f => {
+    ah += `<tr><td>${f.name}</td><td>${f.desc}</td><td class="r"><b>${ni(f.area)}</b></td></tr>`;
+  });
+  ah += `<tr><td>Staircase</td><td>${totalLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
+  if (hasLift) ah += `<tr><td>Lift</td><td>${totalLevels} levels × ${LIFT_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(liftAreaTotal)}</b></td></tr>`;
+  ah += `<tr><td>UG Water Tank</td><td>RCC Work incl. waterproofing</td><td class="r"><b>${ni(WATER_TANK)}</b></td></tr>`;
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
+
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — 50% (₹${ni(bRate)}/sqft)</td></tr>`;
+  if (hasStilt) ah += `<tr><td>Stilt</td><td>Plot (${ni(plotSqFt)}) − Staircase (${STAIRCASE_PER_FLOOR})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''}</td><td class="r"><b>${ni(stiltArea)}</b></td></tr>`;
+  ah += `<tr><td>Balcony</td><td>${breadth}ft × ${BALCONY_DEPTH}ft × ${numFloors} floors</td><td class="r"><b>${ni(balconyTotal)}</b></td></tr>`;
+  ah += `<tr><td>Mumty</td><td>Enclosed Area</td><td class="r"><b>${ni(MUMTY)}</b></td></tr>`;
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 50% cost (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
+
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zc">C</span> Zone C — ₹1,250/Sq.Ft.</td></tr>`;
+  ah += `<tr><td>Terrace</td><td>Floor (${ni(floorArea)}) + 1 balcony (${ni(balconyPerFloor)}) − Staircase (${STAIRCASE_PER_FLOOR})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''}</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹1,250/Sq.Ft. (C)</b></td><td class="r"><b>${ni(totalC)}</b></td></tr>`;
+
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — ₹1,000/Sq.Ft.</td></tr>`;
+  ah += `<tr><td>Ramp</td><td>${breadth}ft × ${RAMP_DEPTH}ft</td><td class="r"><b>${ni(ramp)}</b></td></tr>`;
+  ah += `<tr><td>Shaft</td><td>${SHAFT_PER_FLOOR} sq.ft × ${numFloors} floors</td><td class="r"><b>${ni(shafts)}</b></td></tr>`;
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹1,000/Sq.Ft. (D)</b></td><td class="r"><b>${ni(totalD)}</b></td></tr>`;
+  document.getElementById('areaBody').innerHTML = ah;
+
+  // COST TABLE
+  let ch = '';
+  ch += `<tr><td><span class="zone-tag za">A</span> 100%</td><td>${ni(totalA)}</td><td class="r">${fmt(p.rate)}</td><td class="r">${fmt(costA)}</td></tr>`;
+  ch += `<tr><td><span class="zone-tag zb">B</span> 50%</td><td>${ni(totalB)}</td><td class="r">${fmt(bRate)}</td><td class="r">${fmt(costB)}</td></tr>`;
+  ch += `<tr><td><span class="zone-tag zc">C</span> Terrace</td><td>${ni(totalC)}</td><td class="r">${fmt(C_RATE)}</td><td class="r">${fmt(costC)}</td></tr>`;
+  ch += `<tr><td><span class="zone-tag zd">D</span> Open</td><td>${ni(totalD)}</td><td class="r">${fmt(D_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
+  ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
+  if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
+  ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
+  document.getElementById('costBody').innerHTML = ch;
+
+  showResults();
+}
+
+// ════════════════════════════════════════════
+//  STRUCTURE ONLY MODE
+// ════════════════════════════════════════════
+function calcStructure() {
+  const plotSqYd  = parseInt(document.getElementById('plotSize').value) || 240;
+  const breadth   = parseFloat(document.getElementById('breadth').value) || 36;
+  const coverPct  = parseFloat(document.getElementById('coverage').value) || 75;
+  const numFloors = parseInt(document.getElementById('floors').value); // floors above stilt
+  const hasBsmt   = document.getElementById('basement').checked;
+  const hasLift   = document.getElementById('lift').checked;
+  const strRate   = parseInt(document.getElementById('structureRate').value) || 1250;
+
+  const plotSqFt = plotSqYd * 9;
+  const depth = Math.round(plotSqFt / breadth);
+  const floorArea = Math.round(plotSqFt * coverPct / 100);
+
+  // Staircase levels: basement(opt) + stilt + floors + mumty access
+  const totalLevels = (hasBsmt ? 1 : 0) + 1 + numFloors + 1; // +1 stilt, +1 mumty
+
+  // ── ZONE A (100% at structure rate) ──
+  // All enclosed: basement, floors, stilt, lift, staircase, mumty, water tank
+  const zoneAItems = [];
+  if (hasBsmt) zoneAItems.push({ name: 'Basement', desc: 'Enclosed Area', area: floorArea });
+
+  const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+  for (let i = 0; i < numFloors; i++) zoneAItems.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+
+  zoneAItems.push({ name: 'Stilt', desc: 'Enclosed Area', area: floorArea });
+
+  const liftArea = hasLift ? LIFT_PER_FLOOR * totalLevels : 0;
+  if (hasLift) zoneAItems.push({ name: 'Lift', desc: `${totalLevels} levels × ${LIFT_PER_FLOOR} sq.ft`, area: liftArea });
+
+  const staircaseTotal = STAIRCASE_PER_FLOOR * totalLevels;
+  zoneAItems.push({ name: 'Staircase', desc: 'Enclosed Area', area: staircaseTotal });
+  zoneAItems.push({ name: 'Mumty', desc: 'Enclosed Area', area: MUMTY });
+  zoneAItems.push({ name: 'UG Water Tank', desc: 'RCC Work incl. waterproofing', area: WATER_TANK });
+
+  const totalA = zoneAItems.reduce((s, i) => s + i.area, 0);
+
+  // ── ZONE B (₹500/sqft fixed) — Terrace ──
+  // Terrace = floor area (pantry, washroom, parapet walls)
+  const terrace = floorArea;
+  const totalB = terrace;
+
+  // COSTS
+  const costA = totalA * strRate;
+  const costB = totalB * STRUCT_B_RATE;
+  const subtotal = costA + costB;
+  const liftCost = hasLift ? LIFT_COST : 0;
+  const grand = subtotal + liftCost;
+
+  // DISPLAY
+  document.getElementById('grandTotal').textContent = fmt(grand) + '/-';
+  document.getElementById('pkgSummary').textContent =
+    `Structure Only · ${plotSqYd} sq.yd · Stilt + ${numFloors} Floors` +
+    (hasBsmt ? ' + Basement' : '') + (hasLift ? ' + Lift' : '') +
+    ` · ₹${ni(strRate)}/sqft`;
+
+  document.getElementById('plotParams').innerHTML =
+    `<span><b>Plot:</b> ${plotSqYd} Sq.Yd / ${ni(plotSqFt)} Sq.Ft.</span>` +
+    `<span><b>Dims:</b> ${breadth}ft × ${depth}ft</span>` +
+    `<span><b>Coverage:</b> ${coverPct}%</span>` +
+    `<span><b>Floor Area:</b> ${ni(floorArea)} sq.ft</span>`;
+
+  // AREA TABLE
+  let ah = '';
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag za">A</span> Zone A — 100% Cost (₹${ni(strRate)}/sqft)</td></tr>`;
+  zoneAItems.forEach(i => {
+    ah += `<tr><td>${i.name}</td><td>${i.desc}</td><td class="r"><b>${ni(i.area)}</b></td></tr>`;
+  });
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
+
+  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — ₹500/Sq.Ft.</td></tr>`;
+  ah += `<tr><td>Terrace</td><td>Pantry, Washroom, Parapet Walls</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
+  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹500/Sq.Ft. (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
+  document.getElementById('areaBody').innerHTML = ah;
+
+  // COST TABLE
+  let ch = '';
+  ch += `<tr><td><span class="zone-tag za">A</span> Structure</td><td>${ni(totalA)}</td><td class="r">${fmt(strRate)}</td><td class="r">${fmt(costA)}</td></tr>`;
+  ch += `<tr><td><span class="zone-tag zb">B</span> Terrace</td><td>${ni(totalB)}</td><td class="r">${fmt(STRUCT_B_RATE)}</td><td class="r">${fmt(costB)}</td></tr>`;
+  ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
+  if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
+  ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
+  document.getElementById('costBody').innerHTML = ch;
+
+  showResults();
+}
+
+function showResults() {
+  document.getElementById('form-card').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function doReset() {
+  document.getElementById('form-card').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
