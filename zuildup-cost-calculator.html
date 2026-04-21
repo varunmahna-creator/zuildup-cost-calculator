@@ -236,7 +236,12 @@ function calcPackage() {
   // ZONE A - Main floors + lift (exclude basement, staircase, water tank)
   const zoneAFloors = [];
   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
-  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
+  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ 
+    name: fn[i], 
+    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
+    area: floorAreaAdjusted 
+  });
 
   const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
   const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + liftAreaTotal;
@@ -366,7 +371,12 @@ function calcStructure() {
   const zoneAItems = [];
   
   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
-  for (let i = 0; i < numFloors; i++) zoneAItems.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
+  for (let i = 0; i < numFloors; i++) zoneAItems.push({ 
+    name: fn[i], 
+    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
+    area: floorAreaAdjusted 
+  });
   zoneAItems.push({ name: 'Stilt', desc: 'Enclosed Area', area: floorArea });
 
   const liftArea = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
