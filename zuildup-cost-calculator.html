@@ -96,11 +96,17 @@
 
   <div id="packageRow">
     <label>Package</label>
-    <select id="package">
+    <select id="package" onchange="onPackageChange()">
       <option value="premium">Premium — ₹1,950/sqft</option>
       <option value="platinum" selected>Platinum — ₹2,850/sqft</option>
       <option value="royal">Royal — ₹4,100/sqft</option>
+      <option value="custom">Custom Rate — Enter your own</option>
     </select>
+  </div>
+
+  <div id="customRateRow" class="hidden">
+    <label>Custom Rate <span class="hint">(₹ per sq.ft — Zone A)</span></label>
+    <input type="number" id="customRate" value="2500" min="500" max="10000" step="50">
   </div>
 
   <div id="structureRateRow" class="hidden">
@@ -182,23 +188,40 @@ function onBuildTypeChange() {
   const lbl = document.getElementById('floorsLabel');
   const pkgRow = document.getElementById('packageRow');
   const strRow = document.getElementById('structureRateRow');
+  const customRow = document.getElementById('customRateRow');
 
   if (bt === 'stilt') {
     lbl.textContent = 'Floors above Stilt';
     fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
     pkgRow.classList.remove('hidden');
     strRow.classList.add('hidden');
+    // Keep custom row state based on package selection
+    onPackageChange();
   } else if (bt === 'nostilt') {
     lbl.textContent = 'Number of Floors';
     fl.innerHTML = '<option value="1">Ground only</option><option value="2">Ground + 1</option><option value="3">Ground + 2</option><option value="4" selected>Ground + 3</option><option value="5">Ground + 4</option>';
     pkgRow.classList.remove('hidden');
     strRow.classList.add('hidden');
+    // Keep custom row state based on package selection
+    onPackageChange();
   } else {
     // structure
     lbl.textContent = 'Floors above Stilt';
     fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
     pkgRow.classList.add('hidden');
     strRow.classList.remove('hidden');
+    customRow.classList.add('hidden');
+  }
+}
+
+function onPackageChange() {
+  const pkg = document.getElementById('package').value;
+  const customRow = document.getElementById('customRateRow');
+  
+  if (pkg === 'custom') {
+    customRow.classList.remove('hidden');
+  } else {
+    customRow.classList.add('hidden');
   }
 }
 
@@ -221,7 +244,14 @@ function calcPackage() {
   const pkg       = document.getElementById('package').value;
   const hasBsmt   = document.getElementById('basement').checked;
   const hasLift   = document.getElementById('lift').checked;
-  const p = PKG[pkg];
+  
+  let p;
+  if (pkg === 'custom') {
+    const customRate = parseInt(document.getElementById('customRate').value) || 2500;
+    p = { rate: customRate, label: 'Custom' };
+  } else {
+    p = PKG[pkg];
+  }
   const bRate = Math.round(p.rate * 0.50);
 
   const plotSqFt = plotSqYd * 9;
@@ -281,8 +311,9 @@ function calcPackage() {
   // DISPLAY
   const buildDesc = hasStilt ? `Stilt + ${numFloors} Floors` : `Ground + ${numFloors - 1}`;
   document.getElementById('grandTotal').textContent = fmt(grand) + '/-';
+  const pkgLabel = pkg === 'custom' ? `Custom (₹${ni(p.rate)}/sqft)` : p.label;
   document.getElementById('pkgSummary').textContent =
-    `${p.label} Package · ${plotSqYd} sq.yd · ${buildDesc}` +
+    `${pkgLabel} Package · ${plotSqYd} sq.yd · ${buildDesc}` +
     (hasBsmt ? ' + Basement' : '') + (hasLift ? ' + Lift' : '');
 
   document.getElementById('plotParams').innerHTML =

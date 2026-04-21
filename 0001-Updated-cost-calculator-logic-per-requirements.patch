@@ -1,0 +1,265 @@
+From 450a4f945030bef37545c28c4223262340a0512d Mon Sep 17 00:00:00 2001
+From: OpenClaw <openclaw@github.com>
+Date: Tue, 21 Apr 2026 09:02:42 +0000
+Subject: [PATCH 1/3] Updated cost calculator logic per requirements:
+
+- Moved basement to Zone E (Rs 2700/sqft)
+- Moved staircase to Zone B (50% rate, 125 sqft per floor)
+- Updated water tank to Zone D (Rs 15/liter, 2000L per floor excluding stilt)
+- Removed mumty from Zone B
+- Updated stilt area calculation (Plot*Coverage - Lift - Staircase)
+- Updated Zone C to Rs 600/sqft with terrace + ramp (6ft) + setback
+- Ramp calculation: Breadth * 6ft
+- Setback: Plot Area - Floor Area
+- Updated water tank description to 'brickwork including waterproofing and tile'
+---
+ zuildup-cost-calculator.html | 150 ++++++++++++++++++++++-------------
+ 1 file changed, 95 insertions(+), 55 deletions(-)
+
+diff --git a/zuildup-cost-calculator.html b/zuildup-cost-calculator.html
+index 79d23fe..449a908 100644
+--- a/zuildup-cost-calculator.html
++++ b/zuildup-cost-calculator.html
+@@ -156,15 +156,16 @@ const PKG = {
+   platinum: { rate: 2850, label: 'Platinum' },
+   royal:    { rate: 4100, label: 'Royal' }
+ };
+-const C_RATE = 1250, D_RATE = 1000, LIFT_COST = 1200000;
++const C_RATE = 600, D_RATE = 1000, LIFT_COST = 1200000;
+ const STRUCT_B_RATE = 500;     // Structure Zone B fixed rate
++const BASEMENT_RATE = 2700;    // Zone E - Basement fixed rate
++const WATER_TANK_RATE = 15;    // Rs per liter
++const WATER_TANK_PER_FLOOR = 2000; // Liters per floor
+ const BALCONY_DEPTH = 5;
+-const RAMP_DEPTH = 10;
++const RAMP_DEPTH = 6;          // Updated from 10 to 6
+ const SHAFT_PER_FLOOR = 20;
+-const STAIRCASE_PER_FLOOR = 100;
++const STAIRCASE_PER_FLOOR = 125; // Updated from 100 to 125
+ const LIFT_PER_FLOOR = 25;
+-const WATER_TANK = 200;
+-const MUMTY = 180;
+ 
+ function fmt(n) {
+   let s = Math.round(n).toString();
+@@ -228,39 +229,51 @@ function calcPackage() {
+   const depth = Math.round(plotSqFt / breadth);
+   const floorArea = Math.round(plotSqFt * coverPct / 100);
+ 
+-  const totalLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0);
++  // Count levels for staircase (exclude basement from total levels calculation for water tank)
++  const staircaseLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0);
++  const waterTankFloors = numFloors; // Exclude stilt from water tank calculation
+ 
+-  // ZONE A
++  // ZONE A - Main floors + lift (exclude basement, staircase, water tank)
+   const zoneAFloors = [];
+-  if (hasBsmt) zoneAFloors.push({ name: 'Basement', desc: 'Enclosed Area', area: floorArea });
+   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+   for (let i = 0; i < numFloors; i++) zoneAFloors.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+ 
+-  const staircaseTotal = STAIRCASE_PER_FLOOR * totalLevels;
+-  const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * totalLevels : 0;
+-  const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + staircaseTotal + liftAreaTotal + WATER_TANK;
++  const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
++  const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + liftAreaTotal;
+ 
+-  // ZONE B
+-  const stiltArea = hasStilt ? (plotSqFt - STAIRCASE_PER_FLOOR - (hasLift ? LIFT_PER_FLOOR : 0)) : 0;
++  // ZONE B - Stilt + Balcony + Staircase (50% rate)
++  const stiltArea = hasStilt ? (floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR) : 0;
+   const balconyPerFloor = breadth * BALCONY_DEPTH;
+   const balconyTotal = balconyPerFloor * numFloors;
+-  const totalB = stiltArea + balconyTotal + MUMTY;
++  const staircaseTotal = STAIRCASE_PER_FLOOR * staircaseLevels;
++  const totalB = stiltArea + balconyTotal + staircaseTotal;
+ 
+-  // ZONE C
++  // ZONE C - Terrace + Ramp + Setback (Rs 600/sqft)
+   const terrace = floorArea + balconyPerFloor - STAIRCASE_PER_FLOOR - (hasLift ? LIFT_PER_FLOOR : 0);
+-  const totalC = terrace;
+-
+-  // ZONE D
+   const ramp = breadth * RAMP_DEPTH;
++  const setback = plotSqFt - floorArea; // Plot Area - Plot Area * Coverage
++  const totalC = terrace + ramp + setback;
++
++  // ZONE D - Underground Water Tank (Rs 15/liter)
++  const waterTankLiters = waterTankFloors * WATER_TANK_PER_FLOOR;
++  const totalD = waterTankLiters;
++
++  // ZONE E - Basement (Rs 2700/sqft)
++  const basementArea = hasBsmt ? floorArea : 0;
++  const totalE = basementArea;
++
++  // ZONE F - Shafts (Rs 1000/sqft) 
+   const shafts = SHAFT_PER_FLOOR * numFloors;
+-  const totalD = Math.round(ramp + shafts);
++  const totalF = shafts;
+ 
+   // COSTS
+   const costA = totalA * p.rate;
+   const costB = totalB * bRate;
+   const costC = totalC * C_RATE;
+-  const costD = totalD * D_RATE;
+-  const subtotal = costA + costB + costC + costD;
++  const costD = totalD * WATER_TANK_RATE;
++  const costE = totalE * BASEMENT_RATE;
++  const costF = totalF * D_RATE;
++  const subtotal = costA + costB + costC + costD + costE + costF;
+   const liftCost = hasLift ? LIFT_COST : 0;
+   const grand = subtotal + liftCost;
+ 
+@@ -283,33 +296,44 @@ function calcPackage() {
+   zoneAFloors.forEach(f => {
+     ah += `<tr><td>${f.name}</td><td>${f.desc}</td><td class="r"><b>${ni(f.area)}</b></td></tr>`;
+   });
+-  ah += `<tr><td>Staircase</td><td>${totalLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
+-  if (hasLift) ah += `<tr><td>Lift</td><td>${totalLevels} levels × ${LIFT_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(liftAreaTotal)}</b></td></tr>`;
+-  ah += `<tr><td>UG Water Tank</td><td>RCC Work incl. waterproofing</td><td class="r"><b>${ni(WATER_TANK)}</b></td></tr>`;
++  if (hasLift) ah += `<tr><td>Lift</td><td>${staircaseLevels} levels × ${LIFT_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(liftAreaTotal)}</b></td></tr>`;
+   ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
+ 
+   ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — 50% (₹${ni(bRate)}/sqft)</td></tr>`;
+-  if (hasStilt) ah += `<tr><td>Stilt</td><td>Plot (${ni(plotSqFt)}) − Staircase (${STAIRCASE_PER_FLOOR})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''}</td><td class="r"><b>${ni(stiltArea)}</b></td></tr>`;
++  if (hasStilt) ah += `<tr><td>Stilt</td><td>Floor Area (${ni(floorArea)})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''} − Staircase (${STAIRCASE_PER_FLOOR})</td><td class="r"><b>${ni(stiltArea)}</b></td></tr>`;
+   ah += `<tr><td>Balcony</td><td>${breadth}ft × ${BALCONY_DEPTH}ft × ${numFloors} floors</td><td class="r"><b>${ni(balconyTotal)}</b></td></tr>`;
+-  ah += `<tr><td>Mumty</td><td>Enclosed Area</td><td class="r"><b>${ni(MUMTY)}</b></td></tr>`;
++  ah += `<tr><td>Staircase</td><td>${staircaseLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
+   ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 50% cost (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
+ 
+-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zc">C</span> Zone C — ₹1,250/Sq.Ft.</td></tr>`;
++  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zc">C</span> Zone C — ₹${ni(C_RATE)}/Sq.Ft.</td></tr>`;
+   ah += `<tr><td>Terrace</td><td>Floor (${ni(floorArea)}) + 1 balcony (${ni(balconyPerFloor)}) − Staircase (${STAIRCASE_PER_FLOOR})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''}</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
+-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹1,250/Sq.Ft. (C)</b></td><td class="r"><b>${ni(totalC)}</b></td></tr>`;
+-
+-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — ₹1,000/Sq.Ft.</td></tr>`;
+   ah += `<tr><td>Ramp</td><td>${breadth}ft × ${RAMP_DEPTH}ft</td><td class="r"><b>${ni(ramp)}</b></td></tr>`;
++  ah += `<tr><td>Setback</td><td>Plot Area (${ni(plotSqFt)}) − Floor Area (${ni(floorArea)})</td><td class="r"><b>${ni(setback)}</b></td></tr>`;
++  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(C_RATE)}/Sq.Ft. (C)</b></td><td class="r"><b>${ni(totalC)}</b></td></tr>`;
++
++  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — UG Water Tank (₹${ni(WATER_TANK_RATE)}/Liter)</td></tr>`;
++  ah += `<tr><td>Water Tank</td><td>${waterTankFloors} floors × ${ni(WATER_TANK_PER_FLOOR)} liters<br><small>Brickwork including waterproofing and tile</small></td><td class="r"><b>${ni(waterTankLiters)} L</b></td></tr>`;
++  ah += `<tr class="zone-total"><td colspan="2"><b>Total Capacity at ₹${ni(WATER_TANK_RATE)}/Liter (D)</b></td><td class="r"><b>${ni(totalD)} L</b></td></tr>`;
++
++  if (hasBsmt) {
++    ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#8B4513">E</span> Zone E — Basement (₹${ni(BASEMENT_RATE)}/sqft)</td></tr>`;
++    ah += `<tr><td>Basement</td><td>Enclosed Area</td><td class="r"><b>${ni(basementArea)}</b></td></tr>`;
++    ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(BASEMENT_RATE)}/Sq.Ft. (E)</b></td><td class="r"><b>${ni(totalE)}</b></td></tr>`;
++  }
++
++  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#696969">F</span> Zone F — Shafts (₹${ni(D_RATE)}/sqft)</td></tr>`;
+   ah += `<tr><td>Shaft</td><td>${SHAFT_PER_FLOOR} sq.ft × ${numFloors} floors</td><td class="r"><b>${ni(shafts)}</b></td></tr>`;
+-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹1,000/Sq.Ft. (D)</b></td><td class="r"><b>${ni(totalD)}</b></td></tr>`;
++  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(D_RATE)}/Sq.Ft. (F)</b></td><td class="r"><b>${ni(totalF)}</b></td></tr>`;
+   document.getElementById('areaBody').innerHTML = ah;
+ 
+   // COST TABLE
+   let ch = '';
+   ch += `<tr><td><span class="zone-tag za">A</span> 100%</td><td>${ni(totalA)}</td><td class="r">${fmt(p.rate)}</td><td class="r">${fmt(costA)}</td></tr>`;
+   ch += `<tr><td><span class="zone-tag zb">B</span> 50%</td><td>${ni(totalB)}</td><td class="r">${fmt(bRate)}</td><td class="r">${fmt(costB)}</td></tr>`;
+-  ch += `<tr><td><span class="zone-tag zc">C</span> Terrace</td><td>${ni(totalC)}</td><td class="r">${fmt(C_RATE)}</td><td class="r">${fmt(costC)}</td></tr>`;
+-  ch += `<tr><td><span class="zone-tag zd">D</span> Open</td><td>${ni(totalD)}</td><td class="r">${fmt(D_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
++  ch += `<tr><td><span class="zone-tag zc">C</span> Terrace+Ramp+Setback</td><td>${ni(totalC)}</td><td class="r">${fmt(C_RATE)}</td><td class="r">${fmt(costC)}</td></tr>`;
++  ch += `<tr><td><span class="zone-tag zd">D</span> Water Tank</td><td>${ni(totalD)} L</td><td class="r">${fmt(WATER_TANK_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
++  if (hasBsmt) ch += `<tr><td><span class="zone-tag" style="background:#8B4513">E</span> Basement</td><td>${ni(totalE)}</td><td class="r">${fmt(BASEMENT_RATE)}</td><td class="r">${fmt(costE)}</td></tr>`;
++  ch += `<tr><td><span class="zone-tag" style="background:#696969">F</span> Shafts</td><td>${ni(totalF)}</td><td class="r">${fmt(D_RATE)}</td><td class="r">${fmt(costF)}</td></tr>`;
+   ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
+   if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
+   ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
+@@ -334,38 +358,41 @@ function calcStructure() {
+   const depth = Math.round(plotSqFt / breadth);
+   const floorArea = Math.round(plotSqFt * coverPct / 100);
+ 
+-  // Staircase levels: basement(opt) + stilt + floors + mumty access
+-  const totalLevels = (hasBsmt ? 1 : 0) + 1 + numFloors + 1; // +1 stilt, +1 mumty
++  // Count levels for staircase
++  const staircaseLevels = numFloors + 1 + (hasBsmt ? 1 : 0) + 1; // floors + stilt + basement(opt) + mumty access
++  const waterTankFloors = numFloors; // Exclude stilt from water tank calculation
+ 
+-  // ── ZONE A (100% at structure rate) ──
+-  // All enclosed: basement, floors, stilt, lift, staircase, mumty, water tank
++  // ── ZONE A (100% at structure rate) ── Main floors + stilt + lift
+   const zoneAItems = [];
+-  if (hasBsmt) zoneAItems.push({ name: 'Basement', desc: 'Enclosed Area', area: floorArea });
+-
++  
+   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+   for (let i = 0; i < numFloors; i++) zoneAItems.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
+-
+   zoneAItems.push({ name: 'Stilt', desc: 'Enclosed Area', area: floorArea });
+ 
+-  const liftArea = hasLift ? LIFT_PER_FLOOR * totalLevels : 0;
+-  if (hasLift) zoneAItems.push({ name: 'Lift', desc: `${totalLevels} levels × ${LIFT_PER_FLOOR} sq.ft`, area: liftArea });
+-
+-  const staircaseTotal = STAIRCASE_PER_FLOOR * totalLevels;
+-  zoneAItems.push({ name: 'Staircase', desc: 'Enclosed Area', area: staircaseTotal });
+-  zoneAItems.push({ name: 'Mumty', desc: 'Enclosed Area', area: MUMTY });
+-  zoneAItems.push({ name: 'UG Water Tank', desc: 'RCC Work incl. waterproofing', area: WATER_TANK });
++  const liftArea = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
++  if (hasLift) zoneAItems.push({ name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT_PER_FLOOR} sq.ft`, area: liftArea });
+ 
+   const totalA = zoneAItems.reduce((s, i) => s + i.area, 0);
+ 
+-  // ── ZONE B (₹500/sqft fixed) — Terrace ──
+-  // Terrace = floor area (pantry, washroom, parapet walls)
+-  const terrace = floorArea;
+-  const totalB = terrace;
++  // ── ZONE B (₹500/sqft fixed) — Terrace + Staircase ──
++  const terrace = floorArea; // Pantry, washroom, parapet walls
++  const staircaseTotal = STAIRCASE_PER_FLOOR * staircaseLevels;
++  const totalB = terrace + staircaseTotal;
++
++  // ── ZONE D — Underground Water Tank (Rs 15/liter) ──
++  const waterTankLiters = waterTankFloors * WATER_TANK_PER_FLOOR;
++  const totalD = waterTankLiters;
++
++  // ── ZONE E — Basement (Rs 2700/sqft) ──
++  const basementArea = hasBsmt ? floorArea : 0;
++  const totalE = basementArea;
+ 
+   // COSTS
+   const costA = totalA * strRate;
+   const costB = totalB * STRUCT_B_RATE;
+-  const subtotal = costA + costB;
++  const costD = totalD * WATER_TANK_RATE;
++  const costE = totalE * BASEMENT_RATE;
++  const subtotal = costA + costB + costD + costE;
+   const liftCost = hasLift ? LIFT_COST : 0;
+   const grand = subtotal + liftCost;
+ 
+@@ -390,15 +417,28 @@ function calcStructure() {
+   });
+   ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
+ 
+-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — ₹500/Sq.Ft.</td></tr>`;
++  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — ₹${ni(STRUCT_B_RATE)}/Sq.Ft.</td></tr>`;
+   ah += `<tr><td>Terrace</td><td>Pantry, Washroom, Parapet Walls</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
+-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹500/Sq.Ft. (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
++  ah += `<tr><td>Staircase</td><td>${staircaseLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
++  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(STRUCT_B_RATE)}/Sq.Ft. (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
++
++  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — UG Water Tank (₹${ni(WATER_TANK_RATE)}/Liter)</td></tr>`;
++  ah += `<tr><td>Water Tank</td><td>${waterTankFloors} floors × ${ni(WATER_TANK_PER_FLOOR)} liters<br><small>Brickwork including waterproofing and tile</small></td><td class="r"><b>${ni(waterTankLiters)} L</b></td></tr>`;
++  ah += `<tr class="zone-total"><td colspan="2"><b>Total Capacity at ₹${ni(WATER_TANK_RATE)}/Liter (D)</b></td><td class="r"><b>${ni(totalD)} L</b></td></tr>`;
++
++  if (hasBsmt) {
++    ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#8B4513">E</span> Zone E — Basement (₹${ni(BASEMENT_RATE)}/sqft)</td></tr>`;
++    ah += `<tr><td>Basement</td><td>Enclosed Area</td><td class="r"><b>${ni(basementArea)}</b></td></tr>`;
++    ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(BASEMENT_RATE)}/Sq.Ft. (E)</b></td><td class="r"><b>${ni(totalE)}</b></td></tr>`;
++  }
+   document.getElementById('areaBody').innerHTML = ah;
+ 
+   // COST TABLE
+   let ch = '';
+   ch += `<tr><td><span class="zone-tag za">A</span> Structure</td><td>${ni(totalA)}</td><td class="r">${fmt(strRate)}</td><td class="r">${fmt(costA)}</td></tr>`;
+-  ch += `<tr><td><span class="zone-tag zb">B</span> Terrace</td><td>${ni(totalB)}</td><td class="r">${fmt(STRUCT_B_RATE)}</td><td class="r">${fmt(costB)}</td></tr>`;
++  ch += `<tr><td><span class="zone-tag zb">B</span> Terrace+Staircase</td><td>${ni(totalB)}</td><td class="r">${fmt(STRUCT_B_RATE)}</td><td class="r">${fmt(costB)}</td></tr>`;
++  ch += `<tr><td><span class="zone-tag zd">D</span> Water Tank</td><td>${ni(totalD)} L</td><td class="r">${fmt(WATER_TANK_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
++  if (hasBsmt) ch += `<tr><td><span class="zone-tag" style="background:#8B4513">E</span> Basement</td><td>${ni(totalE)}</td><td class="r">${fmt(BASEMENT_RATE)}</td><td class="r">${fmt(costE)}</td></tr>`;
+   ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
+   if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
+   ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
+-- 
+2.39.5
+

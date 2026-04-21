@@ -1,0 +1,47 @@
+From 78a903afcbe95b91a6c7e3900a57e12ad4b65654 Mon Sep 17 00:00:00 2001
+From: OpenClaw <openclaw@github.com>
+Date: Tue, 21 Apr 2026 09:05:20 +0000
+Subject: [PATCH 2/3] Updated Zone A floor area calculation:
+
+- Each floor area now calculated as: Plot Area * Coverage - Lift (1 floor) - Staircase (1 floor)
+- Applied to both Package mode and Structure-only mode
+- Updated floor descriptions to show the calculation breakdown
+---
+ zuildup-cost-calculator.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/zuildup-cost-calculator.html b/zuildup-cost-calculator.html
+index 449a908..e1934ef 100644
+--- a/zuildup-cost-calculator.html
++++ b/zuildup-cost-calculator.html
+@@ -236,7 +236,12 @@ function calcPackage() {
+   // ZONE A - Main floors + lift (exclude basement, staircase, water tank)
+   const zoneAFloors = [];
+   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+-  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
++  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
++  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ 
++    name: fn[i], 
++    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
++    area: floorAreaAdjusted 
++  });
+ 
+   const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
+   const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + liftAreaTotal;
+@@ -366,7 +371,12 @@ function calcStructure() {
+   const zoneAItems = [];
+   
+   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+-  for (let i = 0; i < numFloors; i++) zoneAItems.push({ name: fn[i], desc: 'Enclosed Area', area: floorArea });
++  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
++  for (let i = 0; i < numFloors; i++) zoneAItems.push({ 
++    name: fn[i], 
++    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
++    area: floorAreaAdjusted 
++  });
+   zoneAItems.push({ name: 'Stilt', desc: 'Enclosed Area', area: floorArea });
+ 
+   const liftArea = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
+-- 
+2.39.5
+
