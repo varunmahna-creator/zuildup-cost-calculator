@@ -163,7 +163,6 @@ const WATER_TANK_RATE = 15;    // Rs per liter
 const WATER_TANK_PER_FLOOR = 2000; // Liters per floor
 const BALCONY_DEPTH = 5;
 const RAMP_DEPTH = 6;          // Updated from 10 to 6
-const SHAFT_PER_FLOOR = 20;
 const STAIRCASE_PER_FLOOR = 125; // Updated from 100 to 125
 const LIFT_PER_FLOOR = 25;
 
@@ -267,9 +266,7 @@ function calcPackage() {
   const basementArea = hasBsmt ? floorArea : 0;
   const totalE = basementArea;
 
-  // ZONE F - Shafts (Rs 1000/sqft) 
-  const shafts = SHAFT_PER_FLOOR * numFloors;
-  const totalF = shafts;
+  // Remove Zone F (Shafts) as per request
 
   // COSTS
   const costA = totalA * p.rate;
@@ -277,8 +274,7 @@ function calcPackage() {
   const costC = totalC * C_RATE;
   const costD = totalD * WATER_TANK_RATE;
   const costE = totalE * BASEMENT_RATE;
-  const costF = totalF * D_RATE;
-  const subtotal = costA + costB + costC + costD + costE + costF;
+  const subtotal = costA + costB + costC + costD + costE;
   const liftCost = hasLift ? LIFT_COST : 0;
   const grand = subtotal + liftCost;
 
@@ -326,9 +322,7 @@ function calcPackage() {
     ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(BASEMENT_RATE)}/Sq.Ft. (E)</b></td><td class="r"><b>${ni(totalE)}</b></td></tr>`;
   }
 
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#696969">F</span> Zone F — Shafts (₹${ni(D_RATE)}/sqft)</td></tr>`;
-  ah += `<tr><td>Shaft</td><td>${SHAFT_PER_FLOOR} sq.ft × ${numFloors} floors</td><td class="r"><b>${ni(shafts)}</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(D_RATE)}/Sq.Ft. (F)</b></td><td class="r"><b>${ni(totalF)}</b></td></tr>`;
+  // Zone F (Shafts) removed
   document.getElementById('areaBody').innerHTML = ah;
 
   // COST TABLE
@@ -338,7 +332,7 @@ function calcPackage() {
   ch += `<tr><td><span class="zone-tag zc">C</span> Terrace+Ramp+Setback</td><td>${ni(totalC)}</td><td class="r">${fmt(C_RATE)}</td><td class="r">${fmt(costC)}</td></tr>`;
   ch += `<tr><td><span class="zone-tag zd">D</span> Water Tank</td><td>${ni(totalD)} L</td><td class="r">${fmt(WATER_TANK_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
   if (hasBsmt) ch += `<tr><td><span class="zone-tag" style="background:#8B4513">E</span> Basement</td><td>${ni(totalE)}</td><td class="r">${fmt(BASEMENT_RATE)}</td><td class="r">${fmt(costE)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag" style="background:#696969">F</span> Shafts</td><td>${ni(totalF)}</td><td class="r">${fmt(D_RATE)}</td><td class="r">${fmt(costF)}</td></tr>`;
+  // Zone F (Shafts) removed
   ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
   if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
   ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
