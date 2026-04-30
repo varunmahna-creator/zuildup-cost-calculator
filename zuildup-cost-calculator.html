@@ -149,7 +149,7 @@
   <div class="card">
     <h2>Area &amp; Cost Estimate</h2>
     <div class="params" id="plotParams"></div>
-    <div class="edit-help">✎ Sales team can edit any <b>area</b> (column 3) or <b>rate</b> (zone header) inline. Click <b>Update</b> to recalculate the totals.</div>
+    <div class="edit-help">✎ Sales team can edit any <b>area</b> (col 3), the <b>zone rate</b> (header), or <b>per-item rate</b> (col 4) inline. Editing the zone rate resets all item rates in that zone. Click <b>Update</b> to recalculate.</div>
     <table>
       <thead>
         <tr><th>Item</th><th>Description</th><th class="r">Area / Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>
@@ -488,7 +488,8 @@ function renderResults() {
     // Items
     zItems.forEach((it, idx) => {
       const itemIdx = s.items.indexOf(it);
-      const cost = it.area * rate;
+      const itemRate = (it.rate != null) ? it.rate : rate;
+      const cost = it.area * itemRate;
       zoneArea += it.area;
       zoneCost += cost;
       const unitLabel = it.unit === 'L' ? ' L' : '';
@@ -496,7 +497,7 @@ function renderResults() {
       html += `<td><b>${it.name}</b></td>`;
       html += `<td>${it.desc}</td>`;
       html += `<td class="r editable-cell"><input type="number" class="edit-input area" data-idx="${itemIdx}" value="${Math.round(it.area)}" min="0" step="1" onchange="onAreaChange(this)">${unitLabel}</td>`;
-      html += `<td class="r">${fmt(rate)}</td>`;
+      html += `<td class="r editable-cell"><input type="number" class="edit-input rate" data-idx="${itemIdx}" value="${itemRate}" min="0" step="1" onchange="onItemRateChange(this)"></td>`;
       html += `<td class="r"><b id="cost-${itemIdx}">${fmt(cost)}</b></td>`;
       html += `</tr>`;
     });
@@ -540,7 +541,18 @@ function renderResults() {
 function onRateChange(el) {
   const z = el.dataset.zone;
   const v = parseFloat(el.value);
-  if (!isNaN(v) && v >= 0) state.rates[z] = v;
+  if (!isNaN(v) && v >= 0) {
+    state.rates[z] = v;
+    // Clear per-item rate overrides in this zone so the new zone rate propagates
+    state.items.forEach(it => { if (it.zone === z) delete it.rate; });
+  }
+  recalculate();
+}
+
+function onItemRateChange(el) {
+  const idx = parseInt(el.dataset.idx);
+  const v = parseFloat(el.value);
+  if (!isNaN(v) && v >= 0) state.items[idx].rate = v;
   recalculate();
 }
 
