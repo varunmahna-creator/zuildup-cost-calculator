@@ -10,13 +10,14 @@
   .header{background:linear-gradient(135deg,#0A1F44,#1a3a6e);padding:24px 0;text-align:center}
   .header h1{color:#C9A24D;font-size:24px;letter-spacing:1px}
   .header p{color:#F2E8D5;font-size:13px;margin-top:4px}
-  .container{max-width:740px;margin:24px auto;padding:0 16px}
+  .container{max-width:780px;margin:24px auto;padding:0 16px}
   .card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(10,31,68,.08);padding:24px 28px;margin-bottom:20px}
   .card h2{color:#0A1F44;font-size:16px;margin-bottom:14px;border-bottom:2px solid #C9A24D;padding-bottom:6px}
   label{display:block;font-weight:600;color:#0A1F44;margin-bottom:5px;font-size:13px}
   .hint{font-weight:400;color:#5E6D82;font-size:11px}
-  input[type=number],select{width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;transition:border .2s}
-  input:focus,select:focus{outline:none;border-color:#C9A24D}
+  input[type=number],input[type=text],select,textarea{width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;transition:border .2s;font-family:inherit}
+  textarea{resize:vertical;min-height:90px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#C9A24D}
   .row{display:flex;gap:14px}.row>div{flex:1}
   .toggle-row{display:flex;gap:20px;margin-bottom:14px;flex-wrap:wrap}
   .toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0A1F44;font-weight:600}
@@ -27,6 +28,7 @@
   .toggle input:checked+.box::after{transform:translateX(18px)}
   .btn{width:100%;padding:13px;background:#0A1F44;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:background .2s}
   .btn:hover{background:#142d5a}
+  .btn-sm{width:auto;padding:8px 16px;font-size:13px}
   .hidden{display:none!important}
   #results{display:none}
   .summary-bar{background:linear-gradient(135deg,#0A1F44,#1a3a6e);color:#fff;border-radius:12px;padding:22px 24px;text-align:center;margin-bottom:20px}
@@ -36,19 +38,33 @@
   table{width:100%;border-collapse:collapse;margin-top:4px}
   th{background:#0A1F44;color:#fff;padding:9px 10px;font-size:12px;text-align:left}
   th.r,td.r{text-align:right!important}
-  td{padding:8px 10px;font-size:12px;border-bottom:1px solid #eee;color:#333}
+  th.c,td.c{text-align:center!important}
+  td{padding:8px 10px;font-size:12px;border-bottom:1px solid #eee;color:#333;vertical-align:middle}
   tr.zone-hdr td{background:#0A1F44;color:#C9A24D;font-weight:700;font-size:12px}
   tr.zone-total td{background:#C9A24D22;font-weight:700;color:#0A1F44}
   tr.grand-total td{background:#C9A24D;color:#fff;font-weight:700;font-size:14px}
   tr.sub-total td{background:#f0f0ee;font-weight:600}
   tr.lift-row td{font-style:italic;color:#5E6D82}
   .zone-tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;margin-right:4px}
-  .za{background:#0A1F44}.zb{background:#C9A24D}.zc{background:#5E6D82}.zd{background:#8B7355}
+  .za{background:#0A1F44}.zb{background:#C9A24D}.zc{background:#5E6D82}.zd{background:#8B7355}.ze{background:#8B4513}
   .footer{text-align:center;padding:18px;font-size:11px;color:#5E6D82}
   .footer a{color:#C9A24D;text-decoration:none}
   .note{font-size:11px;color:#5E6D82;margin-top:10px;line-height:1.6}
   .params{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:10px;font-size:12px;color:#5E6D82}
   .params b{color:#0A1F44}
+  /* Editable inline inputs */
+  .edit-input{width:90px;padding:4px 6px;border:1px solid #C9A24D;border-radius:4px;font-size:12px;text-align:right;background:#FFFBF0}
+  .edit-input.rate{width:80px}
+  .edit-input.area{width:90px}
+  .edit-rate-row td{background:#0A1F44;color:#fff}
+  .edit-rate-row .edit-input{background:#fff;border-color:#fff;color:#0A1F44;font-weight:700}
+  .controls{display:flex;gap:10px;margin-top:14px}
+  .btn-update{background:#C9A24D;color:#0A1F44;flex:1}
+  .btn-update:hover{background:#b89143}
+  .btn-reset{background:#5E6D82;flex:1}
+  .edit-help{font-size:11px;color:#5E6D82;margin-bottom:8px;font-style:italic;padding:8px 12px;background:#FFFBF0;border-left:3px solid #C9A24D;border-radius:4px}
+  .editable-cell{position:relative}
+  .editable-cell::after{content:'✎';position:absolute;right:2px;top:50%;transform:translateY(-50%);color:#C9A24D;font-size:10px;opacity:.5;pointer-events:none}
 </style>
 </head>
 <body>
@@ -131,22 +147,31 @@
   </div>
 
   <div class="card">
-    <h2>Area Calculation</h2>
+    <h2>Area &amp; Cost Estimate</h2>
     <div class="params" id="plotParams"></div>
-    <table><thead><tr><th>Area</th><th>Description</th><th class="r">Est. Size (Sq.Ft.)</th></tr></thead>
-    <tbody id="areaBody"></tbody></table>
-  </div>
-
-  <div class="card">
-    <h2>Cost Estimate</h2>
-    <table><thead><tr><th>Zone</th><th>Area (Sq.Ft.)</th><th class="r">Rate / Sq.Ft.</th><th class="r">Amount</th></tr></thead>
-    <tbody id="costBody"></tbody></table>
+    <div class="edit-help">✎ Sales team can edit any <b>area</b> (column 3) or <b>rate</b> (zone header) inline. Click <b>Update</b> to recalculate the totals.</div>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Description</th><th class="r">Area / Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>
+      </thead>
+      <tbody id="combinedBody"></tbody>
+    </table>
+    <div class="controls">
+      <button class="btn btn-update" onclick="recalculate()">↻ Update Totals</button>
+      <button class="btn btn-reset" onclick="resetEdits()">⟲ Reset to Defaults</button>
+    </div>
     <p class="note">• Budgetary estimate — actual cost may vary based on final area &amp; specifications.<br>
     • Govt. charges, registration &amp; approval fees not included.<br>
     • Quotation valid for 30 days. Payment: 10% advance, balance per construction milestones.</p>
   </div>
 
-  <button class="btn" onclick="doReset()" style="background:#5E6D82">← Recalculate</button>
+  <div class="card">
+    <h2>Notes &amp; Caveats</h2>
+    <div class="edit-help">Add any project-specific notes, exclusions, or special terms the client should be aware of.</div>
+    <textarea id="notesField" placeholder="e.g. Premium imported tiles upgrade extra. Site clearance to be done by client. Power backup not included..."></textarea>
+  </div>
+
+  <button class="btn" onclick="doReset()" style="background:#5E6D82">← Recalculate from Scratch</button>
 </div>
 </div>
 
@@ -162,25 +187,38 @@ const PKG = {
   platinum: { rate: 2850, label: 'Platinum' },
   royal:    { rate: 4100, label: 'Royal' }
 };
-const C_RATE = 600, D_RATE = 1000, LIFT_COST = 1200000;
-const STRUCT_B_RATE = 500;     // Structure Zone B fixed rate
-const BASEMENT_RATE = 2700;    // Zone E - Basement fixed rate
-const WATER_TANK_RATE = 15;    // Rs per liter
-const WATER_TANK_PER_FLOOR = 2000; // Liters per floor
-const BALCONY_DEPTH = 5;
-const RAMP_DEPTH = 6;          // Updated from 10 to 6
-const STAIRCASE_PER_FLOOR = 125; // Updated from 100 to 125
-const LIFT_PER_FLOOR = 25;
+const DEFAULTS = {
+  C_RATE: 600,
+  D_RATE: 1000,
+  LIFT_COST: 1200000,
+  STRUCT_B_RATE: 500,
+  BASEMENT_RATE: 2700,
+  WATER_TANK_RATE: 15,
+  WATER_TANK_PER_FLOOR: 2000,
+  BALCONY_DEPTH: 5,
+  RAMP_DEPTH: 6,
+  STAIRCASE_PER_FLOOR: 125,
+  LIFT_PER_FLOOR: 25
+};
+
+// Holds the current calculation state — gets rebuilt on initial calc, mutated by user edits
+let state = null;
 
 function fmt(n) {
   let s = Math.round(n).toString();
-  if (s.length <= 3) return '₹' + s;
+  let neg = s.startsWith('-');
+  if (neg) s = s.slice(1);
+  if (s.length <= 3) return (neg?'-':'') + '₹' + s;
   let l = s.slice(-3), r = s.slice(0, -3), p = [];
   while (r.length > 2) { p.unshift(r.slice(-2)); r = r.slice(0, -2); }
   if (r) p.unshift(r);
-  return '₹' + p.join(',') + ',' + l;
+  return (neg?'-':'') + '₹' + p.join(',') + ',' + l;
 }
 function ni(v) { return Math.round(v).toLocaleString('en-IN'); }
+function num(id, fallback) {
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? fallback : v;
+}
 
 function onBuildTypeChange() {
   const bt = document.getElementById('buildType').value;
@@ -195,17 +233,14 @@ function onBuildTypeChange() {
     fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
     pkgRow.classList.remove('hidden');
     strRow.classList.add('hidden');
-    // Keep custom row state based on package selection
     onPackageChange();
   } else if (bt === 'nostilt') {
     lbl.textContent = 'Number of Floors';
     fl.innerHTML = '<option value="1">Ground only</option><option value="2">Ground + 1</option><option value="3">Ground + 2</option><option value="4" selected>Ground + 3</option><option value="5">Ground + 4</option>';
     pkgRow.classList.remove('hidden');
     strRow.classList.add('hidden');
-    // Keep custom row state based on package selection
     onPackageChange();
   } else {
-    // structure
     lbl.textContent = 'Floors above Stilt';
     fl.innerHTML = '<option value="1">Stilt + 1</option><option value="2">Stilt + 2</option><option value="3">Stilt + 3</option><option value="4" selected>Stilt + 4</option>';
     pkgRow.classList.add('hidden');
@@ -217,269 +252,321 @@ function onBuildTypeChange() {
 function onPackageChange() {
   const pkg = document.getElementById('package').value;
   const customRow = document.getElementById('customRateRow');
-  
-  if (pkg === 'custom') {
-    customRow.classList.remove('hidden');
-  } else {
-    customRow.classList.add('hidden');
-  }
+  if (pkg === 'custom') customRow.classList.remove('hidden');
+  else customRow.classList.add('hidden');
 }
 
 function calculate() {
   const bt = document.getElementById('buildType').value;
-  if (bt === 'structure') return calcStructure();
-  return calcPackage();
+  if (bt === 'structure') buildStructureState();
+  else buildPackageState();
+  renderResults();
+  showResults();
 }
 
 // ════════════════════════════════════════════
-//  PACKAGE MODE (With Stilt / Without Stilt)
+//  Build initial state — Package mode
 // ════════════════════════════════════════════
-function calcPackage() {
+function buildPackageState() {
   const bt        = document.getElementById('buildType').value;
   const hasStilt  = bt === 'stilt';
-  const plotSqYd  = parseInt(document.getElementById('plotSize').value) || 240;
-  const breadth   = parseFloat(document.getElementById('breadth').value) || 36;
-  const coverPct  = parseFloat(document.getElementById('coverage').value) || 75;
+  const plotSqYd  = num('plotSize', 240);
+  const breadth   = num('breadth', 36);
+  const coverPct  = num('coverage', 75);
   const numFloors = parseInt(document.getElementById('floors').value);
   const pkg       = document.getElementById('package').value;
   const hasBsmt   = document.getElementById('basement').checked;
   const hasLift   = document.getElementById('lift').checked;
-  
-  let p;
-  if (pkg === 'custom') {
-    const customRate = parseInt(document.getElementById('customRate').value) || 2500;
-    p = { rate: customRate, label: 'Custom' };
-  } else {
-    p = PKG[pkg];
-  }
-  const bRate = Math.round(p.rate * 0.50);
+
+  let pRate, pLabel;
+  if (pkg === 'custom') { pRate = num('customRate', 2500); pLabel = 'Custom'; }
+  else { pRate = PKG[pkg].rate; pLabel = PKG[pkg].label; }
 
   const plotSqFt = plotSqYd * 9;
   const depth = Math.round(plotSqFt / breadth);
   const floorArea = Math.round(plotSqFt * coverPct / 100);
-
-  // Count levels for staircase (exclude basement from total levels calculation for water tank)
   const staircaseLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0);
-  const waterTankFloors = numFloors; // Exclude stilt from water tank calculation
+  const STAIR = DEFAULTS.STAIRCASE_PER_FLOOR;
+  const LIFT  = DEFAULTS.LIFT_PER_FLOOR;
+  const balconyPerFloor = breadth * DEFAULTS.BALCONY_DEPTH;
+  const floorAreaAdj = floorArea - (hasLift ? LIFT : 0) - STAIR;
 
-  // ZONE A - Main floors + lift (exclude basement, staircase, water tank)
-  const zoneAFloors = [];
   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
-  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
-  for (let i = 0; i < numFloors; i++) zoneAFloors.push({ 
-    name: fn[i], 
-    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
-    area: floorAreaAdjusted 
-  });
 
-  const liftAreaTotal = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
-  const totalA = zoneAFloors.reduce((s, f) => s + f.area, 0) + liftAreaTotal;
+  // Build editable line items
+  const items = [];
 
-  // ZONE B - Stilt + Balcony + Staircase (50% rate)
-  const stiltArea = hasStilt ? (floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR) : 0;
-  const balconyPerFloor = breadth * BALCONY_DEPTH;
-  const balconyTotal = balconyPerFloor * numFloors;
-  const staircaseTotal = STAIRCASE_PER_FLOOR * staircaseLevels;
-  const totalB = stiltArea + balconyTotal + staircaseTotal;
-
-  // ZONE C - Terrace + Ramp + Setback (Rs 600/sqft)
-  const terrace = floorArea + balconyPerFloor - STAIRCASE_PER_FLOOR - (hasLift ? LIFT_PER_FLOOR : 0);
-  const ramp = breadth * RAMP_DEPTH;
-  const setback = plotSqFt - floorArea; // Plot Area - Plot Area * Coverage
-  const totalC = terrace + ramp + setback;
-
-  // ZONE D - Underground Water Tank (Rs 15/liter)
-  const waterTankLiters = waterTankFloors * WATER_TANK_PER_FLOOR;
-  const totalD = waterTankLiters;
-
-  // ZONE E - Basement (Rs 2700/sqft)
-  const basementArea = hasBsmt ? floorArea : 0;
-  const totalE = basementArea;
-
-  // Remove Zone F (Shafts) as per request
-
-  // COSTS
-  const costA = totalA * p.rate;
-  const costB = totalB * bRate;
-  const costC = totalC * C_RATE;
-  const costD = totalD * WATER_TANK_RATE;
-  const costE = totalE * BASEMENT_RATE;
-  const subtotal = costA + costB + costC + costD + costE;
-  const liftCost = hasLift ? LIFT_COST : 0;
-  const grand = subtotal + liftCost;
-
-  // DISPLAY
-  const buildDesc = hasStilt ? `Stilt + ${numFloors} Floors` : `Ground + ${numFloors - 1}`;
-  document.getElementById('grandTotal').textContent = fmt(grand) + '/-';
-  const pkgLabel = pkg === 'custom' ? `Custom (₹${ni(p.rate)}/sqft)` : p.label;
-  document.getElementById('pkgSummary').textContent =
-    `${pkgLabel} Package · ${plotSqYd} sq.yd · ${buildDesc}` +
-    (hasBsmt ? ' + Basement' : '') + (hasLift ? ' + Lift' : '');
-
-  document.getElementById('plotParams').innerHTML =
-    `<span><b>Plot:</b> ${plotSqYd} Sq.Yd / ${ni(plotSqFt)} Sq.Ft.</span>` +
-    `<span><b>Dims:</b> ${breadth}ft × ${depth}ft</span>` +
-    `<span><b>Coverage:</b> ${coverPct}%</span>` +
-    `<span><b>Floor Area:</b> ${ni(floorArea)} sq.ft</span>`;
-
-  // AREA TABLE
-  let ah = '';
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag za">A</span> Zone A — 100% (₹${ni(p.rate)}/sqft)</td></tr>`;
-  zoneAFloors.forEach(f => {
-    ah += `<tr><td>${f.name}</td><td>${f.desc}</td><td class="r"><b>${ni(f.area)}</b></td></tr>`;
-  });
-  if (hasLift) ah += `<tr><td>Lift</td><td>${staircaseLevels} levels × ${LIFT_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(liftAreaTotal)}</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
-
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — 50% (₹${ni(bRate)}/sqft)</td></tr>`;
-  if (hasStilt) ah += `<tr><td>Stilt</td><td>Floor Area (${ni(floorArea)})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''} − Staircase (${STAIRCASE_PER_FLOOR})</td><td class="r"><b>${ni(stiltArea)}</b></td></tr>`;
-  ah += `<tr><td>Balcony</td><td>${breadth}ft × ${BALCONY_DEPTH}ft × ${numFloors} floors</td><td class="r"><b>${ni(balconyTotal)}</b></td></tr>`;
-  ah += `<tr><td>Staircase</td><td>${staircaseLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 50% cost (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
-
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zc">C</span> Zone C — ₹${ni(C_RATE)}/Sq.Ft.</td></tr>`;
-  ah += `<tr><td>Terrace</td><td>Floor (${ni(floorArea)}) + 1 balcony (${ni(balconyPerFloor)}) − Staircase (${STAIRCASE_PER_FLOOR})${hasLift ? ' − Lift (' + LIFT_PER_FLOOR + ')' : ''}</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
-  ah += `<tr><td>Ramp</td><td>${breadth}ft × ${RAMP_DEPTH}ft</td><td class="r"><b>${ni(ramp)}</b></td></tr>`;
-  ah += `<tr><td>Setback</td><td>Plot Area (${ni(plotSqFt)}) − Floor Area (${ni(floorArea)})</td><td class="r"><b>${ni(setback)}</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(C_RATE)}/Sq.Ft. (C)</b></td><td class="r"><b>${ni(totalC)}</b></td></tr>`;
-
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — UG Water Tank (₹${ni(WATER_TANK_RATE)}/Liter)</td></tr>`;
-  ah += `<tr><td>Water Tank</td><td>${waterTankFloors} floors × ${ni(WATER_TANK_PER_FLOOR)} liters<br><small>Brickwork including waterproofing and tile</small></td><td class="r"><b>${ni(waterTankLiters)} L</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Capacity at ₹${ni(WATER_TANK_RATE)}/Liter (D)</b></td><td class="r"><b>${ni(totalD)} L</b></td></tr>`;
-
-  if (hasBsmt) {
-    ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#8B4513">E</span> Zone E — Basement (₹${ni(BASEMENT_RATE)}/sqft)</td></tr>`;
-    ah += `<tr><td>Basement</td><td>Enclosed Area</td><td class="r"><b>${ni(basementArea)}</b></td></tr>`;
-    ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(BASEMENT_RATE)}/Sq.Ft. (E)</b></td><td class="r"><b>${ni(totalE)}</b></td></tr>`;
+  // Zone A
+  for (let i = 0; i < numFloors; i++) {
+    items.push({
+      zone: 'A', name: fn[i],
+      desc: `Floor (${ni(floorArea)}) − ${hasLift?'Lift ('+LIFT+') − ':''}Staircase (${STAIR})`,
+      area: floorAreaAdj, unit: 'sqft', editable: true
+    });
   }
+  if (hasLift) items.push({
+    zone: 'A', name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT} sq.ft`,
+    area: LIFT * staircaseLevels, unit: 'sqft', editable: true
+  });
 
-  // Zone F (Shafts) removed
-  document.getElementById('areaBody').innerHTML = ah;
+  // Zone B
+  if (hasStilt) items.push({
+    zone: 'B', name: 'Stilt',
+    desc: `Floor (${ni(floorArea)})${hasLift?' − Lift ('+LIFT+')':''} − Staircase (${STAIR})`,
+    area: floorAreaAdj, unit: 'sqft', editable: true
+  });
+  items.push({
+    zone: 'B', name: 'Balcony', desc: `${breadth}ft × ${DEFAULTS.BALCONY_DEPTH}ft × ${numFloors} floors`,
+    area: balconyPerFloor * numFloors, unit: 'sqft', editable: true
+  });
+  items.push({
+    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} levels × ${STAIR} sq.ft`,
+    area: STAIR * staircaseLevels, unit: 'sqft', editable: true
+  });
 
-  // COST TABLE
-  let ch = '';
-  ch += `<tr><td><span class="zone-tag za">A</span> 100%</td><td>${ni(totalA)}</td><td class="r">${fmt(p.rate)}</td><td class="r">${fmt(costA)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag zb">B</span> 50%</td><td>${ni(totalB)}</td><td class="r">${fmt(bRate)}</td><td class="r">${fmt(costB)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag zc">C</span> Terrace+Ramp+Setback</td><td>${ni(totalC)}</td><td class="r">${fmt(C_RATE)}</td><td class="r">${fmt(costC)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag zd">D</span> Water Tank</td><td>${ni(totalD)} L</td><td class="r">${fmt(WATER_TANK_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
-  if (hasBsmt) ch += `<tr><td><span class="zone-tag" style="background:#8B4513">E</span> Basement</td><td>${ni(totalE)}</td><td class="r">${fmt(BASEMENT_RATE)}</td><td class="r">${fmt(costE)}</td></tr>`;
-  // Zone F (Shafts) removed
-  ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
-  if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
-  ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
-  document.getElementById('costBody').innerHTML = ch;
+  // Zone C
+  items.push({
+    zone: 'C', name: 'Terrace',
+    desc: `Floor (${ni(floorArea)}) + Balcony (${ni(balconyPerFloor)}) − Staircase (${STAIR})${hasLift?' − Lift ('+LIFT+')':''}`,
+    area: floorArea + balconyPerFloor - STAIR - (hasLift?LIFT:0), unit: 'sqft', editable: true
+  });
+  items.push({
+    zone: 'C', name: 'Ramp', desc: `${breadth}ft × ${DEFAULTS.RAMP_DEPTH}ft`,
+    area: breadth * DEFAULTS.RAMP_DEPTH, unit: 'sqft', editable: true
+  });
+  items.push({
+    zone: 'C', name: 'Setback', desc: `Plot (${ni(plotSqFt)}) − Floor (${ni(floorArea)})`,
+    area: plotSqFt - floorArea, unit: 'sqft', editable: true
+  });
 
-  showResults();
+  // Zone D — Water tank (in litres)
+  items.push({
+    zone: 'D', name: 'Water Tank',
+    desc: `${numFloors} floors × ${ni(DEFAULTS.WATER_TANK_PER_FLOOR)} L (brickwork incl. waterproofing &amp; tile)`,
+    area: numFloors * DEFAULTS.WATER_TANK_PER_FLOOR, unit: 'L', editable: true
+  });
+
+  // Zone E — Basement
+  if (hasBsmt) items.push({
+    zone: 'E', name: 'Basement', desc: 'Enclosed Area',
+    area: floorArea, unit: 'sqft', editable: true
+  });
+
+  state = {
+    mode: 'package',
+    plotSqYd, plotSqFt, breadth, depth, coverPct, floorArea,
+    numFloors, pkg, pLabel, hasStilt, hasBsmt, hasLift,
+    rates: {
+      A: pRate,
+      B: Math.round(pRate * 0.5),
+      C: DEFAULTS.C_RATE,
+      D: DEFAULTS.WATER_TANK_RATE,
+      E: DEFAULTS.BASEMENT_RATE
+    },
+    rateLabels: {
+      A: '100% Package Rate',
+      B: '50% Package Rate',
+      C: 'Per Sq.Ft.',
+      D: 'Per Litre',
+      E: 'Per Sq.Ft.'
+    },
+    items,
+    liftCost: hasLift ? DEFAULTS.LIFT_COST : 0
+  };
 }
 
 // ════════════════════════════════════════════
-//  STRUCTURE ONLY MODE
+//  Build initial state — Structure Only mode
 // ════════════════════════════════════════════
-function calcStructure() {
-  const plotSqYd  = parseInt(document.getElementById('plotSize').value) || 240;
-  const breadth   = parseFloat(document.getElementById('breadth').value) || 36;
-  const coverPct  = parseFloat(document.getElementById('coverage').value) || 75;
-  const numFloors = parseInt(document.getElementById('floors').value); // floors above stilt
+function buildStructureState() {
+  const plotSqYd  = num('plotSize', 240);
+  const breadth   = num('breadth', 36);
+  const coverPct  = num('coverage', 75);
+  const numFloors = parseInt(document.getElementById('floors').value);
   const hasBsmt   = document.getElementById('basement').checked;
   const hasLift   = document.getElementById('lift').checked;
-  const strRate   = parseInt(document.getElementById('structureRate').value) || 1250;
+  const strRate   = num('structureRate', 1250);
 
   const plotSqFt = plotSqYd * 9;
   const depth = Math.round(plotSqFt / breadth);
   const floorArea = Math.round(plotSqFt * coverPct / 100);
+  const staircaseLevels = numFloors + 1 + (hasBsmt ? 1 : 0) + 1;
+  const STAIR = DEFAULTS.STAIRCASE_PER_FLOOR;
+  const LIFT  = DEFAULTS.LIFT_PER_FLOOR;
+  const floorAreaAdj = floorArea - (hasLift ? LIFT : 0) - STAIR;
 
-  // Count levels for staircase
-  const staircaseLevels = numFloors + 1 + (hasBsmt ? 1 : 0) + 1; // floors + stilt + basement(opt) + mumty access
-  const waterTankFloors = numFloors; // Exclude stilt from water tank calculation
-
-  // ── ZONE A (100% at structure rate) ── Main floors + stilt + lift
-  const zoneAItems = [];
-  
   const fn = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
-  const floorAreaAdjusted = floorArea - (hasLift ? LIFT_PER_FLOOR : 0) - STAIRCASE_PER_FLOOR;
-  for (let i = 0; i < numFloors; i++) zoneAItems.push({ 
-    name: fn[i], 
-    desc: `Floor Area (${ni(floorArea)}) - ${hasLift ? 'Lift (' + LIFT_PER_FLOOR + ') - ' : ''}Staircase (${STAIRCASE_PER_FLOOR})`,
-    area: floorAreaAdjusted 
-  });
-  zoneAItems.push({ name: 'Stilt', desc: 'Enclosed Area', area: floorArea });
+  const items = [];
 
-  const liftArea = hasLift ? LIFT_PER_FLOOR * staircaseLevels : 0;
-  if (hasLift) zoneAItems.push({ name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT_PER_FLOOR} sq.ft`, area: liftArea });
-
-  const totalA = zoneAItems.reduce((s, i) => s + i.area, 0);
-
-  // ── ZONE B (₹500/sqft fixed) — Terrace + Staircase ──
-  const terrace = floorArea; // Pantry, washroom, parapet walls
-  const staircaseTotal = STAIRCASE_PER_FLOOR * staircaseLevels;
-  const totalB = terrace + staircaseTotal;
-
-  // ── ZONE D — Underground Water Tank (Rs 15/liter) ──
-  const waterTankLiters = waterTankFloors * WATER_TANK_PER_FLOOR;
-  const totalD = waterTankLiters;
-
-  // ── ZONE E — Basement (Rs 2700/sqft) ──
-  const basementArea = hasBsmt ? floorArea : 0;
-  const totalE = basementArea;
-
-  // COSTS
-  const costA = totalA * strRate;
-  const costB = totalB * STRUCT_B_RATE;
-  const costD = totalD * WATER_TANK_RATE;
-  const costE = totalE * BASEMENT_RATE;
-  const subtotal = costA + costB + costD + costE;
-  const liftCost = hasLift ? LIFT_COST : 0;
-  const grand = subtotal + liftCost;
-
-  // DISPLAY
-  document.getElementById('grandTotal').textContent = fmt(grand) + '/-';
-  document.getElementById('pkgSummary').textContent =
-    `Structure Only · ${plotSqYd} sq.yd · Stilt + ${numFloors} Floors` +
-    (hasBsmt ? ' + Basement' : '') + (hasLift ? ' + Lift' : '') +
-    ` · ₹${ni(strRate)}/sqft`;
-
-  document.getElementById('plotParams').innerHTML =
-    `<span><b>Plot:</b> ${plotSqYd} Sq.Yd / ${ni(plotSqFt)} Sq.Ft.</span>` +
-    `<span><b>Dims:</b> ${breadth}ft × ${depth}ft</span>` +
-    `<span><b>Coverage:</b> ${coverPct}%</span>` +
-    `<span><b>Floor Area:</b> ${ni(floorArea)} sq.ft</span>`;
-
-  // AREA TABLE
-  let ah = '';
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag za">A</span> Zone A — 100% Cost (₹${ni(strRate)}/sqft)</td></tr>`;
-  zoneAItems.forEach(i => {
-    ah += `<tr><td>${i.name}</td><td>${i.desc}</td><td class="r"><b>${ni(i.area)}</b></td></tr>`;
-  });
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at 100% cost (A)</b></td><td class="r"><b>${ni(totalA)}</b></td></tr>`;
-
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zb">B</span> Zone B — ₹${ni(STRUCT_B_RATE)}/Sq.Ft.</td></tr>`;
-  ah += `<tr><td>Terrace</td><td>Pantry, Washroom, Parapet Walls</td><td class="r"><b>${ni(terrace)}</b></td></tr>`;
-  ah += `<tr><td>Staircase</td><td>${staircaseLevels} levels × ${STAIRCASE_PER_FLOOR} sq.ft</td><td class="r"><b>${ni(staircaseTotal)}</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(STRUCT_B_RATE)}/Sq.Ft. (B)</b></td><td class="r"><b>${ni(totalB)}</b></td></tr>`;
-
-  ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag zd">D</span> Zone D — UG Water Tank (₹${ni(WATER_TANK_RATE)}/Liter)</td></tr>`;
-  ah += `<tr><td>Water Tank</td><td>${waterTankFloors} floors × ${ni(WATER_TANK_PER_FLOOR)} liters<br><small>Brickwork including waterproofing and tile</small></td><td class="r"><b>${ni(waterTankLiters)} L</b></td></tr>`;
-  ah += `<tr class="zone-total"><td colspan="2"><b>Total Capacity at ₹${ni(WATER_TANK_RATE)}/Liter (D)</b></td><td class="r"><b>${ni(totalD)} L</b></td></tr>`;
-
-  if (hasBsmt) {
-    ah += `<tr class="zone-hdr"><td colspan="3"><span class="zone-tag" style="background:#8B4513">E</span> Zone E — Basement (₹${ni(BASEMENT_RATE)}/sqft)</td></tr>`;
-    ah += `<tr><td>Basement</td><td>Enclosed Area</td><td class="r"><b>${ni(basementArea)}</b></td></tr>`;
-    ah += `<tr class="zone-total"><td colspan="2"><b>Total Area at ₹${ni(BASEMENT_RATE)}/Sq.Ft. (E)</b></td><td class="r"><b>${ni(totalE)}</b></td></tr>`;
+  // Zone A
+  for (let i = 0; i < numFloors; i++) {
+    items.push({
+      zone: 'A', name: fn[i],
+      desc: `Floor (${ni(floorArea)}) − ${hasLift?'Lift ('+LIFT+') − ':''}Staircase (${STAIR})`,
+      area: floorAreaAdj, unit: 'sqft', editable: true
+    });
   }
-  document.getElementById('areaBody').innerHTML = ah;
+  items.push({ zone: 'A', name: 'Stilt', desc: 'Enclosed Area', area: floorArea, unit: 'sqft', editable: true });
+  if (hasLift) items.push({
+    zone: 'A', name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT} sq.ft`,
+    area: LIFT * staircaseLevels, unit: 'sqft', editable: true
+  });
 
-  // COST TABLE
-  let ch = '';
-  ch += `<tr><td><span class="zone-tag za">A</span> Structure</td><td>${ni(totalA)}</td><td class="r">${fmt(strRate)}</td><td class="r">${fmt(costA)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag zb">B</span> Terrace+Staircase</td><td>${ni(totalB)}</td><td class="r">${fmt(STRUCT_B_RATE)}</td><td class="r">${fmt(costB)}</td></tr>`;
-  ch += `<tr><td><span class="zone-tag zd">D</span> Water Tank</td><td>${ni(totalD)} L</td><td class="r">${fmt(WATER_TANK_RATE)}</td><td class="r">${fmt(costD)}</td></tr>`;
-  if (hasBsmt) ch += `<tr><td><span class="zone-tag" style="background:#8B4513">E</span> Basement</td><td>${ni(totalE)}</td><td class="r">${fmt(BASEMENT_RATE)}</td><td class="r">${fmt(costE)}</td></tr>`;
-  ch += `<tr class="sub-total"><td colspan="3">Subtotal</td><td class="r">${fmt(subtotal)}</td></tr>`;
-  if (hasLift) ch += `<tr class="lift-row"><td colspan="3">Lift Machine</td><td class="r">${fmt(liftCost)}</td></tr>`;
-  ch += `<tr class="grand-total"><td colspan="3">Grand Total</td><td class="r">${fmt(grand)}/-</td></tr>`;
-  document.getElementById('costBody').innerHTML = ch;
+  // Zone B
+  items.push({ zone: 'B', name: 'Terrace', desc: 'Pantry, Washroom, Parapet Walls', area: floorArea, unit: 'sqft', editable: true });
+  items.push({
+    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} levels × ${STAIR} sq.ft`,
+    area: STAIR * staircaseLevels, unit: 'sqft', editable: true
+  });
 
-  showResults();
+  // Zone D
+  items.push({
+    zone: 'D', name: 'Water Tank',
+    desc: `${numFloors} floors × ${ni(DEFAULTS.WATER_TANK_PER_FLOOR)} L (brickwork incl. waterproofing &amp; tile)`,
+    area: numFloors * DEFAULTS.WATER_TANK_PER_FLOOR, unit: 'L', editable: true
+  });
+
+  // Zone E
+  if (hasBsmt) items.push({ zone: 'E', name: 'Basement', desc: 'Enclosed Area', area: floorArea, unit: 'sqft', editable: true });
+
+  state = {
+    mode: 'structure',
+    plotSqYd, plotSqFt, breadth, depth, coverPct, floorArea,
+    numFloors, pLabel: 'Structure Only', strRate, hasBsmt, hasLift,
+    rates: {
+      A: strRate,
+      B: DEFAULTS.STRUCT_B_RATE,
+      D: DEFAULTS.WATER_TANK_RATE,
+      E: DEFAULTS.BASEMENT_RATE
+    },
+    rateLabels: {
+      A: 'Structure Rate / Sq.Ft.',
+      B: 'Per Sq.Ft.',
+      D: 'Per Litre',
+      E: 'Per Sq.Ft.'
+    },
+    items,
+    liftCost: hasLift ? DEFAULTS.LIFT_COST : 0
+  };
+}
+
+// ════════════════════════════════════════════
+//  Render results table with editable inputs
+// ════════════════════════════════════════════
+function renderResults() {
+  const s = state;
+  document.getElementById('plotParams').innerHTML =
+    `<span><b>Plot:</b> ${s.plotSqYd} Sq.Yd / ${ni(s.plotSqFt)} Sq.Ft.</span>` +
+    `<span><b>Dims:</b> ${s.breadth}ft × ${s.depth}ft</span>` +
+    `<span><b>Coverage:</b> ${s.coverPct}%</span>` +
+    `<span><b>Floor Area:</b> ${ni(s.floorArea)} sq.ft</span>`;
+
+  const zoneNames = {
+    A: 'Zone A — Main Construction',
+    B: 'Zone B — Stilt / Balcony / Staircase',
+    C: 'Zone C — Terrace / Ramp / Setback',
+    D: 'Zone D — UG Water Tank',
+    E: 'Zone E — Basement'
+  };
+
+  // Group items by zone
+  const zones = ['A','B','C','D','E'];
+  let html = '';
+  let totals = {}, costs = {}, grandTotal = 0;
+
+  zones.forEach(z => {
+    const zItems = s.items.filter(i => i.zone === z);
+    if (zItems.length === 0) return;
+    const rate = s.rates[z];
+    let zoneArea = 0, zoneCost = 0;
+
+    // Zone header with editable rate
+    html += `<tr class="zone-hdr edit-rate-row"><td colspan="3"><span class="zone-tag z${z.toLowerCase()}">${z}</span> ${zoneNames[z]} — ${s.rateLabels[z]}</td>`;
+    html += `<td class="r"><input type="number" class="edit-input rate" data-zone="${z}" value="${rate}" min="0" step="1" onchange="onRateChange(this)"></td>`;
+    html += `<td></td></tr>`;
+
+    // Items
+    zItems.forEach((it, idx) => {
+      const itemIdx = s.items.indexOf(it);
+      const cost = it.area * rate;
+      zoneArea += it.area;
+      zoneCost += cost;
+      const unitLabel = it.unit === 'L' ? ' L' : '';
+      html += `<tr>`;
+      html += `<td><b>${it.name}</b></td>`;
+      html += `<td>${it.desc}</td>`;
+      html += `<td class="r editable-cell"><input type="number" class="edit-input area" data-idx="${itemIdx}" value="${Math.round(it.area)}" min="0" step="1" onchange="onAreaChange(this)">${unitLabel}</td>`;
+      html += `<td class="r">${fmt(rate)}</td>`;
+      html += `<td class="r"><b id="cost-${itemIdx}">${fmt(cost)}</b></td>`;
+      html += `</tr>`;
+    });
+
+    // Zone subtotal
+    const unitTotal = zItems[0].unit === 'L' ? `${ni(zoneArea)} L` : ni(zoneArea);
+    html += `<tr class="zone-total"><td colspan="2"><b>Zone ${z} Total</b></td><td class="r"><b id="zarea-${z}">${unitTotal}</b></td><td></td><td class="r"><b id="zcost-${z}">${fmt(zoneCost)}</b></td></tr>`;
+
+    totals[z] = zoneArea;
+    costs[z] = zoneCost;
+    grandTotal += zoneCost;
+  });
+
+  // Subtotal + lift + grand total
+  html += `<tr class="sub-total"><td colspan="4">Construction Subtotal</td><td class="r" id="subtotalRow">${fmt(grandTotal)}</td></tr>`;
+  if (s.liftCost > 0) {
+    html += `<tr class="lift-row"><td colspan="2">Lift Machine</td><td class="r"><span id="liftQty">1</span> unit</td><td class="r"><input type="number" class="edit-input rate" id="liftRate" value="${s.liftCost}" min="0" step="1000" onchange="recalculate()"></td><td class="r"><b id="liftCostCell">${fmt(s.liftCost)}</b></td></tr>`;
+    grandTotal += s.liftCost;
+  }
+  html += `<tr class="grand-total"><td colspan="4">Grand Total</td><td class="r" id="grandRow">${fmt(grandTotal)}/-</td></tr>`;
+
+  document.getElementById('combinedBody').innerHTML = html;
+
+  // Summary bar
+  document.getElementById('grandTotal').textContent = fmt(grandTotal) + '/-';
+  let buildDesc;
+  if (s.mode === 'structure') buildDesc = `Stilt + ${s.numFloors} Floors`;
+  else buildDesc = s.hasStilt ? `Stilt + ${s.numFloors} Floors` : `Ground + ${s.numFloors - 1}`;
+  let pkgLabel;
+  if (s.mode === 'structure') pkgLabel = `Structure Only · ₹${ni(s.strRate)}/sqft`;
+  else if (s.pkg === 'custom') pkgLabel = `Custom (₹${ni(s.rates.A)}/sqft) Package`;
+  else pkgLabel = `${s.pLabel} Package`;
+  document.getElementById('pkgSummary').textContent =
+    `${pkgLabel} · ${s.plotSqYd} sq.yd · ${buildDesc}` +
+    (s.hasBsmt ? ' + Basement' : '') + (s.hasLift ? ' + Lift' : '');
+}
+
+// ════════════════════════════════════════════
+//  Edit handlers
+// ════════════════════════════════════════════
+function onRateChange(el) {
+  const z = el.dataset.zone;
+  const v = parseFloat(el.value);
+  if (!isNaN(v) && v >= 0) state.rates[z] = v;
+  recalculate();
+}
+
+function onAreaChange(el) {
+  const idx = parseInt(el.dataset.idx);
+  const v = parseFloat(el.value);
+  if (!isNaN(v) && v >= 0) state.items[idx].area = v;
+  recalculate();
+}
+
+function recalculate() {
+  // Update lift cost from input if present
+  const liftRateEl = document.getElementById('liftRate');
+  if (liftRateEl) {
+    const v = parseFloat(liftRateEl.value);
+    if (!isNaN(v) && v >= 0) state.liftCost = v;
+  }
+  renderResults();
+}
+
+function resetEdits() {
+  // Rebuild from form inputs
+  const bt = document.getElementById('buildType').value;
+  if (bt === 'structure') buildStructureState();
+  else buildPackageState();
+  renderResults();
 }
 
 function showResults() {
@@ -491,6 +578,8 @@ function showResults() {
 function doReset() {
   document.getElementById('form-card').style.display = 'block';
   document.getElementById('results').style.display = 'none';
+  document.getElementById('notesField').value = '';
+  state = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
