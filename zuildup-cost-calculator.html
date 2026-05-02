@@ -285,7 +285,9 @@ function buildPackageState() {
   const plotSqFt = plotSqYd * 9;
   const depth = Math.round(plotSqFt / breadth);
   const floorArea = Math.round(plotSqFt * coverPct / 100);
-  const staircaseLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0);
+  // Staircase levels = numFloors + stilt + basement + 1 (mumty/terrace access).
+  // Lift stops follow the same count.
+  const staircaseLevels = numFloors + (hasStilt ? 1 : 0) + (hasBsmt ? 1 : 0) + 1;
   const STAIR = DEFAULTS.STAIRCASE_PER_FLOOR;
   const LIFT  = DEFAULTS.LIFT_PER_FLOOR;
   const balconyPerFloor = breadth * DEFAULTS.BALCONY_DEPTH;
@@ -305,7 +307,7 @@ function buildPackageState() {
     });
   }
   if (hasLift) items.push({
-    zone: 'A', name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT} sq.ft`,
+    zone: 'A', name: 'Lift', desc: `${staircaseLevels} stops × ${LIFT} sq.ft`,
     area: LIFT * staircaseLevels, unit: 'sqft', editable: true
   });
 
@@ -320,7 +322,7 @@ function buildPackageState() {
     area: balconyPerFloor * numFloors, unit: 'sqft', editable: true
   });
   items.push({
-    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} levels × ${STAIR} sq.ft`,
+    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} flights × ${STAIR} sq.ft`,
     area: STAIR * staircaseLevels, unit: 'sqft', editable: true
   });
 
@@ -408,14 +410,14 @@ function buildStructureState() {
   }
   items.push({ zone: 'A', name: 'Stilt', desc: 'Enclosed Area', area: floorArea, unit: 'sqft', editable: true });
   if (hasLift) items.push({
-    zone: 'A', name: 'Lift', desc: `${staircaseLevels} levels × ${LIFT} sq.ft`,
+    zone: 'A', name: 'Lift', desc: `${staircaseLevels} stops × ${LIFT} sq.ft`,
     area: LIFT * staircaseLevels, unit: 'sqft', editable: true
   });
 
   // Zone B
   items.push({ zone: 'B', name: 'Terrace', desc: 'Pantry, Washroom, Parapet Walls', area: floorArea, unit: 'sqft', editable: true });
   items.push({
-    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} levels × ${STAIR} sq.ft`,
+    zone: 'B', name: 'Staircase', desc: `${staircaseLevels} flights × ${STAIR} sq.ft`,
     area: STAIR * staircaseLevels, unit: 'sqft', editable: true
   });
 
@@ -485,18 +487,20 @@ function renderResults() {
     html += `<td class="r"><input type="number" class="edit-input rate" data-zone="${z}" value="${rate}" min="0" step="1" onchange="onRateChange(this)"></td>`;
     html += `<td></td></tr>`;
 
-    // Items
+    // Items - round area/rate/cost to integers so displayed values arithmetically match the zone subtotal
     zItems.forEach((it, idx) => {
       const itemIdx = s.items.indexOf(it);
-      const itemRate = (it.rate != null) ? it.rate : rate;
-      const cost = it.area * itemRate;
-      zoneArea += it.area;
+      const itemRate = Math.round((it.rate != null) ? it.rate : rate);
+      const itemArea = Math.round(it.area);
+      const cost = Math.round(itemArea * itemRate);
+      zoneArea += itemArea;
       zoneCost += cost;
       const unitLabel = it.unit === 'L' ? ' L' : '';
+      const descText = it.areaOverridden ? 'As per design scope' : it.desc;
       html += `<tr>`;
       html += `<td><b>${it.name}</b></td>`;
-      html += `<td>${it.desc}</td>`;
-      html += `<td class="r editable-cell"><input type="number" class="edit-input area" data-idx="${itemIdx}" value="${Math.round(it.area)}" min="0" step="1" onchange="onAreaChange(this)">${unitLabel}</td>`;
+      html += `<td>${descText}</td>`;
+      html += `<td class="r editable-cell"><input type="number" class="edit-input area" data-idx="${itemIdx}" value="${itemArea}" min="0" step="1" onchange="onAreaChange(this)">${unitLabel}</td>`;
       html += `<td class="r editable-cell"><input type="number" class="edit-input rate" data-idx="${itemIdx}" value="${itemRate}" min="0" step="1" onchange="onItemRateChange(this)"></td>`;
       html += `<td class="r"><b id="cost-${itemIdx}">${fmt(cost)}</b></td>`;
       html += `</tr>`;
@@ -559,7 +563,10 @@ function onItemRateChange(el) {
 function onAreaChange(el) {
   const idx = parseInt(el.dataset.idx);
   const v = parseFloat(el.value);
-  if (!isNaN(v) && v >= 0) state.items[idx].area = v;
+  if (!isNaN(v) && v >= 0) {
+    state.items[idx].area = v;
+    state.items[idx].areaOverridden = true;
+  }
   recalculate();
 }
 
