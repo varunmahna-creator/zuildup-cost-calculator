@@ -6,6 +6,8 @@ import { Thread } from './Thread'
 import { ReplyBox } from './ReplyBox'
 import { useInboxJwt, inboxFetch } from '@/lib/inboxAuth'
 import { ArrowLeft } from 'lucide-react'
+import { FilterBar } from '@/components/FilterBar'
+import { SortDropdown } from '@/components/SortDropdown'
 
 const INBOX_API = process.env.NEXT_PUBLIC_INBOX_API_URL || ''
 
@@ -77,6 +79,18 @@ export default function InboxClient() {
           selectedId ? 'hidden md:flex' : 'flex'
         } md:w-[360px] md:flex-shrink-0 md:border-r border-gray-200 flex-col h-full`}
       >
+        {/* Lane E filter bar — URL-synced, shareable. Hidden on very narrow
+            mobile to preserve screen space; users can still filter from the
+            dedicated /leads page. */}
+        <div className="hidden md:flex flex-col gap-2 p-2 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              Inbox
+            </span>
+            <SortDropdown />
+          </div>
+          <FilterBar showDateRange={false} />
+        </div>
         <LeadList onSelect={setSelectedId} selectedId={selectedId} />
       </aside>
 
