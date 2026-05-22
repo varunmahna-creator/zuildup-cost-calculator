@@ -230,7 +230,7 @@ function clientFilter(list: InboxLead[], f: Filters): InboxLead[] {
 
 function clientSort(list: InboxLead[], sort: string): InboxLead[] {
   const copy = [...list]
-  const get = (l: InboxLead, k: string): string => (l as Record<string, unknown>)[k] as string ?? ''
+  const get = (l: InboxLead, k: string): string => ((l as unknown) as Record<string, unknown>)[k] as string ?? ''
   switch (sort) {
     case 'oldest':
       return copy.sort((a, b) => get(a, 'created_at').localeCompare(get(b, 'created_at')))

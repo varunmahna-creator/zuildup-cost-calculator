@@ -6,6 +6,8 @@ import { formatDateTime, formatDate, ACTIVITY_ICONS } from '@/lib/format'
 import {
   fetchLeadActivities,
   fetchPriorSubmissions,
+  changeStatus,
+  overrideTier,
   type LeadActivity,
   type PriorSubmission,
 } from '@/lib/leadApi'
@@ -25,17 +27,26 @@ export interface LeadRowExpandedLead {
   // optional new-model fields from Lane B (graceful absence)
   status_top?: string | null
   sub_status?: string | null
+  loss_reason?: string | null
+  loss_reason_text?: string | null
+  junk_reason?: string | null
+  nqr_reason?: string | null
+  nqr_reason_text?: string | null
+  restart_date?: string | null
+  callback_at?: string | null
 }
 
 interface Props {
   lead: LeadRowExpandedLead
   canOverrideTier?: boolean
+  userRole?: string
   onStatusSaved?: () => void
 }
 
 export default function LeadRowExpanded({
   lead,
   canOverrideTier,
+  userRole,
   onStatusSaved,
 }: Props) {
   const [activities, setActivities] = useState<LeadActivity[]>([])
@@ -113,8 +124,12 @@ export default function LeadRowExpanded({
                 <dd className="flex-1">
                   <TierBadge
                     tier={lead.tier_hint}
-                    canOverride={canOverrideTier}
                     leadId={lead.id}
+                    userRole={userRole || (canOverrideTier ? 'admin' : 'spoc')}
+                    onOverride={async (id, newTier) => {
+                      const r = await overrideTier(id, newTier)
+                      if (!r.ok) throw new Error(r.error || 'Failed to override tier')
+                    }}
                   />
                 </dd>
               </div>
@@ -131,8 +146,21 @@ export default function LeadRowExpanded({
             </h4>
             <StatusPicker
               leadId={lead.id}
-              currentStatus={lead.status}
-              onSaved={onStatusSaved}
+              current={{
+                status_top: lead.status_top ?? null,
+                sub_status: lead.sub_status ?? null,
+                loss_reason: lead.loss_reason ?? null,
+                loss_reason_text: lead.loss_reason_text ?? null,
+                junk_reason: lead.junk_reason ?? null,
+                nqr_reason: lead.nqr_reason ?? null,
+                restart_date: lead.restart_date ?? null,
+                callback_at: lead.callback_at ?? null,
+              }}
+              onSave={async (payload) => {
+                const r = await changeStatus(lead.id, payload)
+                if (!r.ok) throw new Error(r.error || 'Failed to save status')
+                onStatusSaved?.()
+              }}
             />
           </div>
 
