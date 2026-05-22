@@ -115,9 +115,13 @@ export async function getLeadsList(params: {
   q?: string
   status?: string
   status_top?: string
+  sub_status?: string
   assigned_to?: string
   lead_source?: string
   tier_hint?: string
+  created_from?: string
+  created_to?: string
+  sort?: string
   page?: number | string
   limit?: number | string
 }): Promise<ListLeadsResponse | null> {

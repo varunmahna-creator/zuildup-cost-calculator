@@ -97,6 +97,10 @@ export const ROW_BORDER_COLOR: Record<StatusTop | 'unset', string> = {
 }
 
 // Tier badge color classes — admin/director can override.
+// Tier values used by FilterBar / TierBadge dropdowns. PARTNER is admin-only.
+export const TIER_VALUES = ['A', 'B', 'C', 'PARTNER'] as const
+export type TierValue = typeof TIER_VALUES[number]
+
 export const TIER_COLOR: Record<string, string> = {
   A: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   B: 'bg-slate-100 text-slate-800 border-slate-200',
