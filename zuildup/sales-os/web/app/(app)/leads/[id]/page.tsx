@@ -8,7 +8,10 @@ import DispositionBar from './DispositionBar'
 import Assignment from './Assignment'
 import ActivityLogger from './ActivityLogger'
 import Attachments from './Attachments'
-import NextAction from './NextAction'
+// NextAction tab removed 2026-05-22 (Lane D, QoL sprint) — redundant with
+// activity log / Lane B's structured callback flow. NextAction.tsx kept on
+// disk in case Lane B reuses parts.
+// import NextAction from './NextAction'
 import LeadReplyBox from './LeadReplyBox'
 
 export const dynamic = 'force-dynamic'
@@ -104,14 +107,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
 
-          <NextAction
-            leadId={lead.id}
-            current={{
-              next_action_type: lead.next_action_type ?? null,
-              next_action_due: lead.next_action_due ?? null,
-              next_action_notes: lead.next_action_notes ?? null,
-            }}
-          />
+          {/* NextAction tab removed 2026-05-22 (Lane D, QoL sprint) */}
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <ActivityLogger leadId={lead.id} />
