@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { inboxFetch } from '@/lib/inboxAuth'
+import { formatDate } from '@/lib/format'
 import { MessageSquare, Mail, StickyNote, Phone } from 'lucide-react'
 
 export interface InboxLead {
@@ -39,7 +40,7 @@ function relTime(iso: string | null): string {
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 30) return `${d}d`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso)
 }
 
 function ChannelBadge({ channel }: { channel: string | null }) {
