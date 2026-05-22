@@ -199,3 +199,57 @@ export function LeadList({ onSelect, selectedId }: Props) {
     </div>
   )
 }
+
+// ─── Client-side filter / sort fallback ─────────────────────────────────────
+// Used until Lane B's listLeadsPaginated supports the full filter set. The
+// helpers are pure and intentionally forgiving: any unknown field on InboxLead
+// is treated as "match anything" so we never hide leads due to schema drift.
+
+type Filters = ReturnType<typeof useActiveFilters>
+
+function clientFilter(list: InboxLead[], f: Filters): InboxLead[] {
+  return list.filter((l) => {
+    if (f.status_top.length && !f.status_top.includes((l as { status_top?: string }).status_top ?? l.status ?? '')) return false
+    if (f.sub_status.length && !f.sub_status.includes((l as { sub_status?: string }).sub_status ?? '')) return false
+    if (f.tier_hint.length && !f.tier_hint.includes(l.tier_hint ?? '')) return false
+    if (f.lead_source.length && !f.lead_source.includes(l.lead_source ?? '')) return false
+    if (f.assigned_to.length && !f.assigned_to.includes(l.assigned_to ?? '')) return false
+    if (f.created_from) {
+      const created = (l as { created_at?: string }).created_at
+      if (created && created < f.created_from) return false
+    }
+    if (f.created_to) {
+      const created = (l as { created_at?: string }).created_at
+      // Inclusive upper bound on the date — append 'T23:59:59' so a date-only
+      // value matches the full day.
+      if (created && created > `${f.created_to}T23:59:59`) return false
+    }
+    return true
+  })
+}
+
+function clientSort(list: InboxLead[], sort: string): InboxLead[] {
+  const copy = [...list]
+  const get = (l: InboxLead, k: string): string => (l as Record<string, unknown>)[k] as string ?? ''
+  switch (sort) {
+    case 'oldest':
+      return copy.sort((a, b) => get(a, 'created_at').localeCompare(get(b, 'created_at')))
+    case 'recent_activity':
+      return copy.sort((a, b) => (b.last_received_at ?? '').localeCompare(a.last_received_at ?? ''))
+    case 'callback_soon':
+      return copy.sort((a, b) => {
+        const av = get(a, 'callback_at') || '9999'
+        const bv = get(b, 'callback_at') || '9999'
+        return av.localeCompare(bv)
+      })
+    case 'restart_soon':
+      return copy.sort((a, b) => {
+        const av = get(a, 'restart_date') || '9999'
+        const bv = get(b, 'restart_date') || '9999'
+        return av.localeCompare(bv)
+      })
+    case 'newest':
+    default:
+      return copy.sort((a, b) => get(b, 'created_at').localeCompare(get(a, 'created_at')))
+  }
+}
