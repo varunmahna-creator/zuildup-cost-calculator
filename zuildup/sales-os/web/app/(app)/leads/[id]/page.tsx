@@ -2,14 +2,22 @@ import { requireAuth } from '@/lib/auth'
 import { getLeadDetail, getUsers } from '@/lib/inboxApiServer'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatDate, formatDateTime, formatDateRelative, ageDays, ACTIVITY_ICONS } from '@/lib/format'
-import StatusChanger from './StatusChanger'
+import {
+  formatDate,
+  formatDateTime,
+  formatDateRelative,
+  ageDays,
+  ACTIVITY_ICONS,
+  STATUS_COLOR,
+  statusTopKey,
+} from '@/lib/format'
 import DispositionBar from './DispositionBar'
 import Assignment from './Assignment'
 import ActivityLogger from './ActivityLogger'
 import Attachments from './Attachments'
 import NextAction from './NextAction'
 import LeadReplyBox from './LeadReplyBox'
+import LeadStatusBlock from './LeadStatusBlock'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,11 +74,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 </span>
               )}
               {lead.tier_hint && (
-                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                  lead.tier_hint === 'A' ? 'bg-emerald-100 text-emerald-800' :
-                  lead.tier_hint === 'B' ? 'bg-amber-100 text-amber-800' :
-                  lead.tier_hint === 'PARTNER' ? 'bg-indigo-100 text-indigo-800' :
-                  'bg-gray-100 text-gray-800'
+                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded border ${
+                  lead.tier_hint === 'A' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+                  lead.tier_hint === 'B' ? 'bg-slate-100 text-slate-800 border-slate-200' :
+                  lead.tier_hint === 'C' ? 'bg-zinc-100 text-zinc-700 border-zinc-200' :
+                  lead.tier_hint === 'PARTNER' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                  'bg-gray-100 text-gray-800 border-gray-200'
                 }`}>
                   Tier-{lead.tier_hint}
                 </span>
@@ -78,7 +87,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               {lead.date_received && <span className="text-gray-500">Received: {formatDate(lead.date_received)} ({ageInDays}d ago)</span>}
             </div>
           </div>
-          <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">{lead.status}</span>
+          <span
+            className={`inline-flex px-3 py-1 text-sm font-medium rounded-full border ${STATUS_COLOR[statusTopKey(lead.status_top)]}`}
+            title={lead.sub_status ? `${lead.status_top || '—'} · ${lead.sub_status}` : (lead.status_top || lead.status || 'No status')}
+          >
+            {lead.sub_status || lead.status_top || lead.status || '—'}
+          </span>
         </div>
       </div>
 
@@ -176,8 +190,22 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         {/* Right: Status, Assignment, Attachments */}
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-3">Status</h2>
-            <StatusChanger leadId={lead.id} currentStatus={lead.status} />
+            <LeadStatusBlock
+              leadId={lead.id}
+              userRole={user.role}
+              tier={lead.tier_hint ?? null}
+              current={{
+                status_top: lead.status_top ?? null,
+                sub_status: lead.sub_status ?? null,
+                loss_reason: lead.loss_reason ?? null,
+                loss_reason_text: lead.loss_reason_text ?? null,
+                junk_reason: lead.junk_reason ?? null,
+                nqr_reason: lead.nqr_reason ?? null,
+                nqr_reason_text: lead.nqr_reason_text ?? null,
+                restart_date: lead.restart_date ?? null,
+                callback_at: lead.callback_at ?? null,
+              }}
+            />
             <div className="mt-3 text-xs text-gray-500">
               Next action: <span className={nextDue.className}>{nextDue.text}</span>
             </div>

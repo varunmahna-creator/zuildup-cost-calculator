@@ -84,6 +84,23 @@ export type Lead = {
   campaign_id: string | null
   ad_id: string | null
   platform: string | null
+  // --- QoL sprint 2026-05-22 new status model (Lane A schema, Lane B API) --
+  // Optional because back-compat: existing rows may not yet have these set.
+  status_top?: string | null
+  sub_status?: string | null
+  loss_reason?: string | null
+  loss_reason_text?: string | null
+  junk_reason?: string | null
+  nqr_reason?: string | null
+  nqr_reason_text?: string | null
+  restart_date?: string | null
+  attempt_reason?: string | null
+  callback_at?: string | null
+  legacy_status?: string | null
+  tier_override_by?: string | null
+  tier_override_at?: string | null
+  tier_override_from?: string | null
+  related_count?: number | null
 }
 
 export type ListLeadsResponse = {
@@ -97,6 +114,7 @@ export type ListLeadsResponse = {
 export async function getLeadsList(params: {
   q?: string
   status?: string
+  status_top?: string
   assigned_to?: string
   lead_source?: string
   tier_hint?: string

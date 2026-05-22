@@ -1,13 +1,22 @@
 import { requireRole } from '@/lib/auth'
 import { getLeadsList, getLeadSources, getUsers } from '@/lib/inboxApiServer'
-import { truncate, formatDateRelative, LEAD_STATUSES } from '@/lib/format'
+import {
+  formatDateRelative,
+  LEAD_STATUSES,
+  STATUS_TOP,
+  STATUS_COLOR,
+  ROW_BORDER_COLOR,
+  statusTopKey,
+} from '@/lib/format'
+import TierBadge from '@/components/TierBadge'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
 interface SearchParams {
   assigned_to?: string
-  status?: string
+  status?: string         // legacy enum (kept for back-compat shadow column)
+  status_top?: string     // new top-level status
   q?: string
   lead_source?: string
   tier_hint?: string
@@ -15,7 +24,7 @@ interface SearchParams {
 }
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  await requireRole(['admin', 'director'])
+  const user = await requireRole(['admin', 'director'])
   const params = await searchParams
 
   const PAGE_SIZE = 50
@@ -26,6 +35,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     getLeadsList({
       q: params.q,
       status: params.status,
+      // Lane B will accept status_top on the listing endpoint. For now we pass
+      // it through; the API ignores unknown params, so this is forward-safe.
+      status_top: params.status_top,
       assigned_to: params.assigned_to,
       lead_source: params.lead_source,
       tier_hint: params.tier_hint,
@@ -99,7 +111,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Status (top)</label>
+          <select name="status_top" defaultValue={params.status_top || ''} className="border border-gray-300 rounded px-3 py-1.5 text-sm">
+            <option value="">Any</option>
+            {STATUS_TOP.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Legacy status</label>
           <select name="status" defaultValue={params.status || ''} className="border border-gray-300 rounded px-3 py-1.5 text-sm">
             <option value="">Any</option>
             {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -129,6 +148,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tier</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub-status</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -138,8 +158,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             {leads.length > 0 ? leads.map((lead) => {
               const nextDue = formatDateRelative(lead.next_action_due)
               const assignee = users.find((u) => u.id === lead.assigned_to)
+              const topKey = statusTopKey(lead.status_top)
+              const rowBorder = ROW_BORDER_COLOR[topKey]
+              const pill = STATUS_COLOR[topKey]
               return (
-                <tr key={lead.id} className="hover:bg-gray-50">
+                <tr key={lead.id} className={`hover:bg-gray-50 ${rowBorder}`}>
                   <td className="px-4 py-3 text-sm">
                     <Link href={`/leads/${lead.id}`} className="text-blue-600 hover:underline font-medium">
                       {lead.name || '(no name)'}
@@ -156,19 +179,18 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {lead.tier_hint ? (
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                        lead.tier_hint === 'A' ? 'bg-emerald-100 text-emerald-800' :
-                        lead.tier_hint === 'B' ? 'bg-amber-100 text-amber-800' :
-                        lead.tier_hint === 'PARTNER' ? 'bg-indigo-100 text-indigo-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {lead.tier_hint}
-                      </span>
-                    ) : '—'}
+                    <TierBadge tier={lead.tier_hint ?? null} leadId={lead.id} userRole={user.role} readOnly />
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">{lead.status}</span>
+                    <span
+                      className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${pill}`}
+                      title={lead.sub_status ? `${lead.status_top || '—'} · ${lead.sub_status}` : (lead.status_top || lead.status || 'No status')}
+                    >
+                      {lead.status_top || lead.status || '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {lead.sub_status || <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">{assignee?.name || <span className="text-gray-400 italic">unassigned</span>}</td>
                   <td className={`px-4 py-3 text-sm ${nextDue.className}`}>{nextDue.text}</td>
@@ -176,7 +198,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 </tr>
               )
             }) : (
-              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No leads match these filters.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-500">No leads match these filters.</td></tr>
             )}
           </tbody>
         </table>
