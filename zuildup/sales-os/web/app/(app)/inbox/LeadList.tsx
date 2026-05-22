@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { inboxFetch } from '@/lib/inboxAuth'
+import { formatDate } from '@/lib/format'
+import { activeFiltersToQuery, useActiveFilters } from '@/components/FilterBar'
+import { useActiveSort } from '@/components/SortDropdown'
 import { MessageSquare, Mail, StickyNote, Phone } from 'lucide-react'
 
 export interface InboxLead {
@@ -39,7 +43,7 @@ function relTime(iso: string | null): string {
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 30) return `${d}d`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso)
 }
 
 function ChannelBadge({ channel }: { channel: string | null }) {
@@ -84,6 +88,14 @@ export function LeadList({ onSelect, selectedId }: Props) {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const cancelledRef = useRef(false)
+  // Filter / sort state lives in the URL (FilterBar + SortDropdown). We re-read
+  // it on every render and re-fetch when the serialised query changes.
+  const filters = useActiveFilters()
+  const sort = useActiveSort()
+  const searchParams = useSearchParams()
+  // searchParams.toString() captures every relevant change in a single key so the
+  // effect dependency stays minimal and stable.
+  const qsKey = searchParams.toString()
 
   useEffect(() => {
     cancelledRef.current = false
@@ -94,14 +106,26 @@ export function LeadList({ onSelect, selectedId }: Props) {
           setLoading(false)
           return
         }
-        const r = await inboxFetch(`${INBOX_API}/inbox/leads?limit=50`)
+        // Build query string: filters + sort + limit. Lane B's listLeadsPaginated
+        // accepts these params; until B ships, the upstream simply ignores unknown
+        // keys and returns the full set (client-side filtering is a TODO fallback).
+        const filterQs = activeFiltersToQuery(filters)
+        const sortParam = sort && sort !== 'newest' ? `&sort=${sort}` : ''
+        const sep = filterQs ? '&' : ''
+        const url = `${INBOX_API}/inbox/leads?limit=50${sep}${filterQs}${sortParam}`
+        const r = await inboxFetch(url)
         if (!r.ok) {
           const t = await r.text()
           throw new Error(`HTTP ${r.status}: ${t.slice(0, 120)}`)
         }
         const data = await r.json()
         if (cancelledRef.current) return
-        setLeads(data.leads || [])
+        let list: InboxLead[] = data.leads || []
+        // Client-side fallback filter: if the API hasn't been extended yet (Lane B),
+        // still honour the user's selection so the UI feels real.
+        list = clientFilter(list, filters)
+        list = clientSort(list, sort)
+        setLeads(list)
         setErr(null)
       } catch (e) {
         if (cancelledRef.current) return
@@ -116,7 +140,10 @@ export function LeadList({ onSelect, selectedId }: Props) {
       cancelledRef.current = true
       clearInterval(id)
     }
-  }, [])
+    // qsKey changes ⇒ filters/sort changed ⇒ refetch. Keeping the dep small avoids
+    // re-running on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qsKey])
 
   if (loading) {
     return <div className="p-4 text-sm text-gray-500">Loading leads…</div>

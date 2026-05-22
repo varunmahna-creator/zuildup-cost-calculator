@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { inboxFetch } from '@/lib/inboxAuth'
+import { formatDateTime } from '@/lib/format'
 
 export interface InboxMessage {
   id: string
@@ -136,7 +137,7 @@ export function Thread({ leadId }: Props) {
               />
             )}
             <div className={`text-[10px] mt-1 ${out ? 'text-blue-100' : 'text-gray-400'}`}>
-              {new Date(m.received_at).toLocaleString()}
+              {formatDateTime(m.received_at)}
             </div>
           </div>
         )
