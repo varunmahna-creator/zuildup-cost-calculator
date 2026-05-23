@@ -1,4 +1,5 @@
-import { requireRole } from '@/lib/auth'
+import { requireAuth, effectiveScope, effectiveTabs } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import { getLeadsList, getLeadSources, getUsers } from '@/lib/inboxApiServer'
 import Link from 'next/link'
 import LeadsListClient from './LeadsListClient'
@@ -17,6 +18,7 @@ interface SearchParams {
   tier?: string  // FilterBar uses 'tier' key
   source?: string  // FilterBar uses 'source' key for lead_source
   assignee?: string  // FilterBar uses 'assignee' key for assigned_to
+  partner?: string  // qol-sprint-2 2026-05-23 — 'zu' | 'y2g' | 'organic'
   from?: string
   to?: string
   sort?: string
@@ -25,7 +27,15 @@ interface SearchParams {
 }
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const user = await requireRole(['admin', 'director'])
+  // qol-sprint-2 2026-05-23: any authenticated user with the 'leads' tab can
+  // view this page. The inbox-api enforces scope server-side (SPOCs only see
+  // their own leads). UI just renders what the API returns.
+  const user = await requireAuth()
+  const tabs = effectiveTabs(user)
+  if (!tabs.includes('leads')) {
+    redirect('/inbox')
+  }
+  const scope = effectiveScope(user)
   const params = await searchParams
 
   const PAGE_SIZE = 50
@@ -36,6 +46,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const leadSource = params.source ?? params.lead_source
   const assignedTo = params.assignee ?? params.assigned_to
   const tier = params.tier ?? params.tier_hint
+  const partner = params.partner
 
   const [leadsResp, sourcesResp, usersResp] = await Promise.all([
     getLeadsList({
@@ -45,6 +56,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       sub_status: params.sub_status,
       assigned_to: assignedTo,
       lead_source: leadSource,
+      partner,
       tier_hint: tier,
       created_from: params.from,
       created_to: params.to,
@@ -63,43 +75,57 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const totalPages = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 1
   const canOverrideTier = user.role === 'admin' || user.role === 'director'
 
+  const isScoped = scope === 'assigned_only'
+  const pageTitle = isScoped ? 'My Leads' : 'All Leads'
+  const subtitle = isScoped
+    ? `${totalCount} lead${totalCount === 1 ? '' : 's'} assigned to you`
+    : `${totalCount} total leads`
+
+  // Partner filter tabs (qol-sprint-2 2026-05-23 — P0-3 fix).
+  // The count badges and the click-through filter use the SAME backend param
+  // (`partner=…`) so they can never disagree. Replaces the old lead_source
+  // pills which had divergent count/filter logic.
+  const partnerTabs = [
+    { key: '',        label: 'All' },
+    { key: 'zu',      label: 'ZU' },
+    { key: 'y2g',     label: 'Y2G' },
+    { key: 'organic', label: 'Organic' },
+  ]
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Leads</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalCount} total leads</p>
+          <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
+          <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
         </div>
       </div>
 
-      {/* Source filter pills (kept from Lane D) */}
-      {sources.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Link
-            href="/leads"
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${
-              !leadSource
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            All ({sources.reduce((s, x) => s + x.n, 0)})
-          </Link>
-          {sources.map((src) => (
+      {/* Partner filter tabs (qol-sprint-2 2026-05-23) — replaces lead_source pills */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {partnerTabs.map((t) => {
+          const isActive = (partner || '') === t.key
+          const nextQuery: any = { ...params, page: '1' }
+          if (t.key) {
+            nextQuery.partner = t.key
+          } else {
+            delete nextQuery.partner
+          }
+          return (
             <Link
-              key={src.lead_source}
-              href={{ query: { ...params, lead_source: src.lead_source, source: src.lead_source, page: '1' } }}
-              className={`px-3 py-1 rounded-full text-xs font-medium border capitalize ${
-                leadSource === src.lead_source
+              key={t.key || 'all'}
+              href={{ query: nextQuery }}
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                isActive
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
               }`}
             >
-              {src.lead_source} ({src.n})
+              {t.label}
             </Link>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
 
       {/* Lane E FilterBar + SortDropdown header (replaces Lane D's inline form) */}
       <LeadsHeaderClient

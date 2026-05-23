@@ -11,6 +11,7 @@ import {
   type LeadActivity,
   type PriorSubmission,
 } from '@/lib/leadApi'
+import { getPlotSize, getBudget, getTimeline } from '@/lib/leadDisplay'
 import StatusPicker from './StatusPicker'
 import TierBadge from './TierBadge'
 
@@ -34,6 +35,10 @@ export interface LeadRowExpandedLead {
   nqr_reason_text?: string | null
   restart_date?: string | null
   callback_at?: string | null
+  // qol-sprint-2 2026-05-23 — for plot/budget/timeline display
+  fields?: Record<string, any> | null
+  plot_size?: string | null
+  budget_band?: string | null
 }
 
 interface Props {
@@ -136,6 +141,33 @@ export default function LeadRowExpanded({
               <div className="flex gap-2">
                 <dt className="text-gray-500 w-20 shrink-0">Created</dt>
                 <dd className="flex-1 text-gray-700">{formatDateTime(lead.created_at)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* qol-sprint-2 2026-05-23 (P1-5) — Project details from form fields */}
+          <div className="bg-white rounded border border-gray-200 p-3">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Project details
+            </h4>
+            <dl className="text-sm space-y-1">
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-20 shrink-0">Plot Size</dt>
+                <dd className="flex-1 text-gray-900">
+                  {getPlotSize(lead) || <span className="text-gray-400 italic">—</span>}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-20 shrink-0">Budget</dt>
+                <dd className="flex-1 text-gray-900">
+                  {getBudget(lead) || <span className="text-gray-400 italic">—</span>}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-20 shrink-0">Timeline</dt>
+                <dd className="flex-1 text-gray-900">
+                  {getTimeline(lead) || <span className="text-gray-400 italic">—</span>}
+                </dd>
               </div>
             </dl>
           </div>

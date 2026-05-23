@@ -1,4 +1,4 @@
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, effectiveTabs } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -10,6 +10,11 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const user = await requireAuth()
+  // qol-sprint-2 2026-05-23 — per-user tab gating instead of role-only.
+  // Non-admins now see Leads tab by default (scoped to their assigned leads).
+  const tabs = effectiveTabs(user)
+  const showLeads = tabs.includes('leads')
+  const showAdmin = tabs.includes('admin') || user.role === 'admin'  // admin role always sees admin nav
 
   const signOut = async () => {
     'use server'
@@ -37,11 +42,13 @@ export default async function AppLayout({
                   <MessageSquare className="w-4 h-4" />
                   Inbox
                 </Link>
+                {showLeads && (
+                  <Link href="/leads" className="text-gray-700 hover:text-gray-900">
+                    Leads
+                  </Link>
+                )}
                 {(user.role === 'admin' || user.role === 'director') && (
                   <>
-                    <Link href="/leads" className="text-gray-700 hover:text-gray-900">
-                      All Leads
-                    </Link>
                     <Link href="/unassigned" className="text-gray-700 hover:text-gray-900">
                       Unassigned
                     </Link>
@@ -50,10 +57,15 @@ export default async function AppLayout({
                     </Link>
                   </>
                 )}
-                {user.role === 'admin' && (
-                  <Link href="/admin/users" className="text-gray-700 hover:text-gray-900">
-                    Users
-                  </Link>
+                {showAdmin && (
+                  <>
+                    <Link href="/admin/users" className="text-gray-700 hover:text-gray-900">
+                      Users
+                    </Link>
+                    <Link href="/admin/permissions" className="text-gray-700 hover:text-gray-900">
+                      Permissions
+                    </Link>
+                  </>
                 )}
               </nav>
             </div>

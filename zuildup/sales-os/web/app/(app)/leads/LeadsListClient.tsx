@@ -53,6 +53,25 @@ function tierPillClass(tier: string | null | undefined): string {
   return 'bg-zinc-100 text-zinc-800'
 }
 
+// qol-sprint-2 2026-05-23 (P1-6) — fallback when API doesn't return partner_label.
+function prettyPartnerFromRaw(partner: string | null | undefined): string {
+  if (!partner) return 'Unknown'
+  const p = String(partner).toLowerCase()
+  if (p === 'y2g') return 'Y2G'
+  if (p === 'zu') return 'ZU'
+  if (p === 'organic') return 'Organic'
+  return 'Unknown'
+}
+
+function partnerPillClass(partner: string | null | undefined): string {
+  if (!partner) return 'bg-zinc-100 text-zinc-700'
+  const p = String(partner).toLowerCase()
+  if (p === 'y2g') return 'bg-amber-100 text-amber-800'
+  if (p === 'zu') return 'bg-blue-100 text-blue-800'
+  if (p === 'organic') return 'bg-emerald-100 text-emerald-800'
+  return 'bg-zinc-100 text-zinc-700'
+}
+
 export default function LeadsListClient({
   leads: initialLeads,
   users,
@@ -68,6 +87,14 @@ export default function LeadsListClient({
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [modalOpen, setModalOpen] = useState(false)
   const [newLeadFlash, setNewLeadFlash] = useState<string | null>(null)
+
+  // qol-sprint-2 2026-05-23 (P0-4 pagination fix): when the server re-renders
+  // with new initialLeads (e.g. page navigation, filter change), sync the
+  // client-side state. Without this, useState(initialLeads) only fires on
+  // first mount and stale rows persist across page=1 → page=2 navigations.
+  useEffect(() => {
+    setLeads(initialLeads)
+  }, [initialLeads])
 
   // Sync openId ↔ ?open=
   const updateOpenParam = useCallback(
@@ -209,7 +236,9 @@ export default function LeadsListClient({
                   <th scope="col" className="px-3 py-2 text-left w-12">S.No</th>
                   <th scope="col" className="px-3 py-2 text-left">Name</th>
                   <th scope="col" className="px-3 py-2 text-left">Phone</th>
-                  <th scope="col" className="px-3 py-2 text-left">Source</th>
+                  {/* qol-sprint-2 2026-05-23 (P1-6): Partner + Channel split replacing Source */}
+                  <th scope="col" className="px-3 py-2 text-left">Partner</th>
+                  <th scope="col" className="px-3 py-2 text-left">Channel</th>
                   <th scope="col" className="px-3 py-2 text-left">Tier</th>
                   <th scope="col" className="px-3 py-2 text-left">Status</th>
                   <th scope="col" className="px-3 py-2 text-left">Assignee</th>
@@ -240,14 +269,21 @@ export default function LeadsListClient({
                         <td className="px-3 py-2 text-sm text-gray-700 tabular-nums">
                           {lead.phone || '—'}
                         </td>
+                        {/* qol-sprint-2 2026-05-23 (P1-6): Partner column */}
                         <td className="px-3 py-2 text-sm">
-                          {lead.lead_source ? (
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 capitalize">
-                              {lead.lead_source}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
+                          {(() => {
+                            const partner = (lead as any).partner_label || prettyPartnerFromRaw((lead as any).partner)
+                            const cls = partnerPillClass((lead as any).partner)
+                            return (
+                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${cls}`}>
+                                {partner}
+                              </span>
+                            )
+                          })()}
+                        </td>
+                        {/* qol-sprint-2 2026-05-23 (P1-6): Channel column */}
+                        <td className="px-3 py-2 text-sm text-gray-700">
+                          {(lead as any).channel || '—'}
                         </td>
                         <td className="px-3 py-2 text-sm">
                           {lead.tier_hint ? (
@@ -284,7 +320,7 @@ export default function LeadsListClient({
                       </tr>
                       {isOpen && (
                         <tr className="bg-blue-50/40">
-                          <td colSpan={10} className="px-0 py-0">
+                          <td colSpan={11} className="px-0 py-0">
                             <LeadRowExpanded
                               lead={{
                                 id: lead.id,
@@ -298,6 +334,10 @@ export default function LeadsListClient({
                                 related_count: (lead as any).related_count,
                                 status_top: (lead as any).status_top,
                                 sub_status: (lead as any).sub_status,
+                                // qol-sprint-2 2026-05-23 — for Plot/Budget/Timeline pretty-print
+                                fields: (lead as any).fields,
+                                plot_size: lead.plot_size,
+                                budget_band: lead.budget_band,
                               }}
                               canOverrideTier={canOverrideTier}
                               onStatusSaved={handleStatusSaved}
