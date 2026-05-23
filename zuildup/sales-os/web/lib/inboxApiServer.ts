@@ -53,6 +53,34 @@ async function inboxApiGet<T = any>(path: string): Promise<T | null> {
   }
 }
 
+async function inboxApiSend<T = any>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: any
+): Promise<T | null> {
+  try {
+    const { token } = await mintJwt()
+    const r = await fetch(API_URL + path, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+    if (!r.ok) {
+      const errText = await r.text().catch(() => '')
+      console.error(`[inboxApiServer] ${method} ${path} -> HTTP ${r.status}: ${errText}`)
+      return null
+    }
+    return (await r.json()) as T
+  } catch (e: any) {
+    console.error('[inboxApiServer] send error:', e.message)
+    return null
+  }
+}
+
 // ----- typed wrappers --------------------------------------------------
 
 export type Lead = {
@@ -101,6 +129,12 @@ export type Lead = {
   tier_override_at?: string | null
   tier_override_from?: string | null
   related_count?: number | null
+  // --- QoL sprint 2 (2026-05-23) Partner+Channel split --------------------
+  partner?: string | null            // raw value from DB: 'zu','y2g','organic',null
+  partner_label?: string | null      // pretty: 'ZU','Y2G','Organic','Unknown'
+  source?: string | null             // raw: 'meta','google','manual','referral',null
+  channel?: string | null            // pretty: 'Meta','Google','Manual','Channel Partner','Referral','Unknown'
+  fields?: Record<string, any> | null
 }
 
 export type ListLeadsResponse = {
@@ -118,6 +152,7 @@ export async function getLeadsList(params: {
   sub_status?: string
   assigned_to?: string
   lead_source?: string
+  partner?: string  // qol-sprint-2 2026-05-23
   tier_hint?: string
   created_from?: string
   created_to?: string
@@ -168,4 +203,37 @@ export async function getDashboardAnalytics() {
 
 export async function getTeamOverdue() {
   return inboxApiGet<{ ok: true; rows: any[] }>('/admin/team-overdue')
+}
+
+// ----- QoL Sprint 2 (2026-05-23) — admin permissions API ---------------
+
+export type AdminUser = {
+  id: string
+  email: string
+  name: string | null
+  role: 'admin' | 'director' | 'spoc'
+  active: boolean
+  lead_scope: 'assigned_only' | 'all_leads' | 'team_leads' | null
+  visible_tabs: string[] | null
+  phone: string | null
+  created_at: string
+}
+
+export async function getAdminPermissions() {
+  return inboxApiGet<{ ok: true; users: AdminUser[] }>('/admin/permissions')
+}
+
+export async function patchAdminPermissions(
+  userId: string,
+  body: Partial<Pick<AdminUser, 'role' | 'lead_scope' | 'visible_tabs' | 'active'>>
+) {
+  return inboxApiSend<{ ok: boolean; updated?: AdminUser; audit_ids?: string[]; error?: string }>(
+    `/admin/permissions/${userId}`,
+    'PATCH',
+    body
+  )
+}
+
+export async function getAdminPermissionsAudit(limit = 100) {
+  return inboxApiGet<{ ok: true; rows: any[] }>(`/admin/permissions/audit?limit=${limit}`)
 }
