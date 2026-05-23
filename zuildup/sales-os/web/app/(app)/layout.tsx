@@ -65,6 +65,9 @@ export default async function AppLayout({
                     <Link href="/admin/permissions" className="text-gray-700 hover:text-gray-900">
                       Permissions
                     </Link>
+                    <Link href="/admin/wa-test" className="text-gray-700 hover:text-gray-900">
+                      WA Test
+                    </Link>
                   </>
                 )}
               </nav>
