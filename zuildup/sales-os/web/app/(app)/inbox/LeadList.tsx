@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { inboxFetch } from '@/lib/inboxAuth'
+import { formatDate } from '@/lib/format'
+import { activeFiltersToQuery, useActiveFilters } from '@/components/FilterBar'
+import { useActiveSort } from '@/components/SortDropdown'
 import { MessageSquare, Mail, StickyNote, Phone } from 'lucide-react'
 
 export interface InboxLead {
@@ -39,7 +43,7 @@ function relTime(iso: string | null): string {
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 30) return `${d}d`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso)
 }
 
 function ChannelBadge({ channel }: { channel: string | null }) {
@@ -84,6 +88,14 @@ export function LeadList({ onSelect, selectedId }: Props) {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const cancelledRef = useRef(false)
+  // Filter / sort state lives in the URL (FilterBar + SortDropdown). We re-read
+  // it on every render and re-fetch when the serialised query changes.
+  const filters = useActiveFilters()
+  const sort = useActiveSort()
+  const searchParams = useSearchParams()
+  // searchParams.toString() captures every relevant change in a single key so the
+  // effect dependency stays minimal and stable.
+  const qsKey = searchParams.toString()
 
   useEffect(() => {
     cancelledRef.current = false
@@ -94,14 +106,26 @@ export function LeadList({ onSelect, selectedId }: Props) {
           setLoading(false)
           return
         }
-        const r = await inboxFetch(`${INBOX_API}/inbox/leads?limit=50`)
+        // Build query string: filters + sort + limit. Lane B's listLeadsPaginated
+        // accepts these params; until B ships, the upstream simply ignores unknown
+        // keys and returns the full set (client-side filtering is a TODO fallback).
+        const filterQs = activeFiltersToQuery(filters)
+        const sortParam = sort && sort !== 'newest' ? `&sort=${sort}` : ''
+        const sep = filterQs ? '&' : ''
+        const url = `${INBOX_API}/inbox/leads?limit=50${sep}${filterQs}${sortParam}`
+        const r = await inboxFetch(url)
         if (!r.ok) {
           const t = await r.text()
           throw new Error(`HTTP ${r.status}: ${t.slice(0, 120)}`)
         }
         const data = await r.json()
         if (cancelledRef.current) return
-        setLeads(data.leads || [])
+        let list: InboxLead[] = data.leads || []
+        // Client-side fallback filter: if the API hasn't been extended yet (Lane B),
+        // still honour the user's selection so the UI feels real.
+        list = clientFilter(list, filters)
+        list = clientSort(list, sort)
+        setLeads(list)
         setErr(null)
       } catch (e) {
         if (cancelledRef.current) return
@@ -116,7 +140,10 @@ export function LeadList({ onSelect, selectedId }: Props) {
       cancelledRef.current = true
       clearInterval(id)
     }
-  }, [])
+    // qsKey changes ⇒ filters/sort changed ⇒ refetch. Keeping the dep small avoids
+    // re-running on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qsKey])
 
   if (loading) {
     return <div className="p-4 text-sm text-gray-500">Loading leads…</div>
@@ -171,4 +198,58 @@ export function LeadList({ onSelect, selectedId }: Props) {
       </ul>
     </div>
   )
+}
+
+// ─── Client-side filter / sort fallback ─────────────────────────────────────
+// Used until Lane B's listLeadsPaginated supports the full filter set. The
+// helpers are pure and intentionally forgiving: any unknown field on InboxLead
+// is treated as "match anything" so we never hide leads due to schema drift.
+
+type Filters = ReturnType<typeof useActiveFilters>
+
+function clientFilter(list: InboxLead[], f: Filters): InboxLead[] {
+  return list.filter((l) => {
+    if (f.status_top.length && !f.status_top.includes((l as { status_top?: string }).status_top ?? l.status ?? '')) return false
+    if (f.sub_status.length && !f.sub_status.includes((l as { sub_status?: string }).sub_status ?? '')) return false
+    if (f.tier_hint.length && !f.tier_hint.includes(l.tier_hint ?? '')) return false
+    if (f.lead_source.length && !f.lead_source.includes(l.lead_source ?? '')) return false
+    if (f.assigned_to.length && !f.assigned_to.includes(l.assigned_to ?? '')) return false
+    if (f.created_from) {
+      const created = (l as { created_at?: string }).created_at
+      if (created && created < f.created_from) return false
+    }
+    if (f.created_to) {
+      const created = (l as { created_at?: string }).created_at
+      // Inclusive upper bound on the date — append 'T23:59:59' so a date-only
+      // value matches the full day.
+      if (created && created > `${f.created_to}T23:59:59`) return false
+    }
+    return true
+  })
+}
+
+function clientSort(list: InboxLead[], sort: string): InboxLead[] {
+  const copy = [...list]
+  const get = (l: InboxLead, k: string): string => ((l as unknown) as Record<string, unknown>)[k] as string ?? ''
+  switch (sort) {
+    case 'oldest':
+      return copy.sort((a, b) => get(a, 'created_at').localeCompare(get(b, 'created_at')))
+    case 'recent_activity':
+      return copy.sort((a, b) => (b.last_received_at ?? '').localeCompare(a.last_received_at ?? ''))
+    case 'callback_soon':
+      return copy.sort((a, b) => {
+        const av = get(a, 'callback_at') || '9999'
+        const bv = get(b, 'callback_at') || '9999'
+        return av.localeCompare(bv)
+      })
+    case 'restart_soon':
+      return copy.sort((a, b) => {
+        const av = get(a, 'restart_date') || '9999'
+        const bv = get(b, 'restart_date') || '9999'
+        return av.localeCompare(bv)
+      })
+    case 'newest':
+    default:
+      return copy.sort((a, b) => get(b, 'created_at').localeCompare(get(a, 'created_at')))
+  }
 }
