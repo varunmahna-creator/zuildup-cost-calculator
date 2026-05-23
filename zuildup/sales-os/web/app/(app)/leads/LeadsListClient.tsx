@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { formatDateRelative } from '@/lib/format'
+import { formatDate, formatDateRelative } from '@/lib/format'
 import type { Lead } from '@/lib/inboxApiServer'
 import LeadRowExpanded from '@/components/LeadRowExpanded'
 import ManualLeadModal from '@/components/ManualLeadModal'
@@ -19,6 +19,8 @@ interface Props {
   users: UserLite[]
   canOverrideTier?: boolean
   initialOpen?: string | null
+  page?: number
+  pageSize?: number
 }
 
 // Border colour by `status_top` (Lane B field) — fall back to legacy mapping
@@ -41,7 +43,14 @@ function statusPillClass(lead: any): string {
   if (top === 'Qualified') return 'bg-emerald-100 text-emerald-800'
   if (top === 'Not Qualified') return 'bg-rose-100 text-rose-800'
   if (top === 'Attempted') return 'bg-amber-100 text-amber-800'
-  return 'bg-gray-100 text-gray-800'
+  return 'bg-slate-100 text-slate-800'
+}
+
+function tierPillClass(tier: string | null | undefined): string {
+  if (tier === 'A') return 'bg-indigo-100 text-indigo-800'
+  if (tier === 'B') return 'bg-slate-100 text-slate-800'
+  if (tier === 'PARTNER') return 'bg-purple-100 text-purple-800'
+  return 'bg-zinc-100 text-zinc-800'
 }
 
 export default function LeadsListClient({
@@ -49,6 +58,8 @@ export default function LeadsListClient({
   users,
   canOverrideTier,
   initialOpen,
+  page = 1,
+  pageSize = 50,
 }: Props) {
   const router = useRouter()
   const search = useSearchParams()
@@ -164,6 +175,8 @@ export default function LeadsListClient({
     router.refresh()
   }, [router, updateOpenParam])
 
+  const baseSerial = (page - 1) * pageSize
+
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -189,93 +202,115 @@ export default function LeadsListClient({
             No leads match these filters.
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200">
-            {leads.map((lead) => {
-              const isOpen = openId === lead.id
-              const nextDue = formatDateRelative(lead.next_action_due)
-              const assigneeName = lead.assigned_to ? usersById[lead.assigned_to] : null
-              return (
-                <li key={lead.id} className={`border-l-4 ${borderColor(lead)}`}>
-                  <button
-                    type="button"
-                    onClick={() => handleRowClick(lead.id)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 focus:outline-none focus:bg-blue-50 ${
-                      isOpen ? 'bg-blue-50' : ''
-                    }`}
-                    aria-expanded={isOpen}
-                  >
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                      <span className="font-medium text-gray-900 min-w-[140px]">
-                        {lead.name || '(no name)'}
-                      </span>
-                      <span className="text-gray-700 min-w-[120px] tabular-nums">
-                        {lead.phone || '—'}
-                      </span>
-                      {lead.lead_source && (
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 capitalize">
-                          {lead.lead_source}
-                        </span>
-                      )}
-                      {lead.tier_hint && (
-                        <span
-                          className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                            lead.tier_hint === 'A'
-                              ? 'bg-indigo-100 text-indigo-800'
-                              : lead.tier_hint === 'B'
-                              ? 'bg-slate-100 text-slate-800'
-                              : lead.tier_hint === 'PARTNER'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-zinc-100 text-zinc-800'
-                          }`}
-                        >
-                          Tier-{lead.tier_hint}
-                        </span>
-                      )}
-                      <span
-                        className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusPillClass(
-                          lead
-                        )}`}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 font-medium">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left w-12">S.No</th>
+                  <th scope="col" className="px-3 py-2 text-left">Name</th>
+                  <th scope="col" className="px-3 py-2 text-left">Phone</th>
+                  <th scope="col" className="px-3 py-2 text-left">Source</th>
+                  <th scope="col" className="px-3 py-2 text-left">Tier</th>
+                  <th scope="col" className="px-3 py-2 text-left">Status</th>
+                  <th scope="col" className="px-3 py-2 text-left">Assignee</th>
+                  <th scope="col" className="px-3 py-2 text-left">Next Action</th>
+                  <th scope="col" className="px-3 py-2 text-left">Created</th>
+                  <th scope="col" className="px-3 py-2 text-left w-8" aria-label="Expand"></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {leads.map((lead, idx) => {
+                  const isOpen = openId === lead.id
+                  const nextDue = formatDateRelative(lead.next_action_due)
+                  const assigneeName = lead.assigned_to ? usersById[lead.assigned_to] : null
+                  const serial = baseSerial + idx + 1
+                  return (
+                    <Fragment key={lead.id}>
+                      <tr
+                        onClick={() => handleRowClick(lead.id)}
+                        className={`cursor-pointer hover:bg-gray-50 ${isOpen ? 'bg-blue-50' : ''}`}
+                        aria-expanded={isOpen}
                       >
-                        {(lead as any).status_top
-                          ? `${(lead as any).status_top}${
-                              (lead as any).sub_status ? ' / ' + (lead as any).sub_status : ''
-                            }`
-                          : lead.status}
-                      </span>
-                      <span className="text-gray-600 text-xs">
-                        {assigneeName || (
-                          <span className="text-gray-400 italic">unassigned</span>
-                        )}
-                      </span>
-                      <span className={`text-xs ml-auto ${nextDue.className}`}>{nextDue.text}</span>
-                      <span className="text-gray-400 text-xs ml-1" aria-hidden>
-                        {isOpen ? '▾' : '▸'}
-                      </span>
-                    </div>
-                  </button>
-                  {isOpen && (
-                    <LeadRowExpanded
-                      lead={{
-                        id: lead.id,
-                        name: lead.name,
-                        phone: lead.phone,
-                        email: lead.email,
-                        lead_source: lead.lead_source,
-                        tier_hint: lead.tier_hint,
-                        status: lead.status,
-                        created_at: lead.created_at,
-                        related_count: (lead as any).related_count,
-                        status_top: (lead as any).status_top,
-                        sub_status: (lead as any).sub_status,
-                      }}
-                      canOverrideTier={canOverrideTier}
-                      onStatusSaved={handleStatusSaved}
-                    />
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+                        <td className={`px-3 py-2 text-sm text-gray-500 tabular-nums border-l-4 ${borderColor(lead)}`}>
+                          {serial}
+                        </td>
+                        <td className="px-3 py-2 text-sm font-medium text-gray-900">
+                          {lead.name || '(no name)'}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-700 tabular-nums">
+                          {lead.phone || '—'}
+                        </td>
+                        <td className="px-3 py-2 text-sm">
+                          {lead.lead_source ? (
+                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 capitalize">
+                              {lead.lead_source}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-sm">
+                          {lead.tier_hint ? (
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${tierPillClass(lead.tier_hint)}`}>
+                              Tier-{lead.tier_hint}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-sm">
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusPillClass(lead)}`}>
+                            {(lead as any).status_top
+                              ? `${(lead as any).status_top}${
+                                  (lead as any).sub_status ? ' / ' + (lead as any).sub_status : ''
+                                }`
+                              : lead.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-700">
+                          {assigneeName || (
+                            <span className="text-gray-400 italic">unassigned</span>
+                          )}
+                        </td>
+                        <td className={`px-3 py-2 text-sm ${nextDue.className}`}>
+                          {nextDue.text}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDate(lead.created_at)}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-400 text-right" aria-hidden>
+                          {isOpen ? '▾' : '▸'}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="bg-blue-50/40">
+                          <td colSpan={10} className="px-0 py-0">
+                            <LeadRowExpanded
+                              lead={{
+                                id: lead.id,
+                                name: lead.name,
+                                phone: lead.phone,
+                                email: lead.email,
+                                lead_source: lead.lead_source,
+                                tier_hint: lead.tier_hint,
+                                status: lead.status,
+                                created_at: lead.created_at,
+                                related_count: (lead as any).related_count,
+                                status_top: (lead as any).status_top,
+                                sub_status: (lead as any).sub_status,
+                              }}
+                              canOverrideTier={canOverrideTier}
+                              onStatusSaved={handleStatusSaved}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

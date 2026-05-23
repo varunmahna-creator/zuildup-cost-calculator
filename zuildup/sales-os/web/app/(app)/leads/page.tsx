@@ -112,6 +112,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         users={users.map((u) => ({ id: u.id, name: u.name }))}
         canOverrideTier={canOverrideTier}
         initialOpen={params.open ?? null}
+        page={page}
+        pageSize={PAGE_SIZE}
       />
 
       {/* Pagination */}
