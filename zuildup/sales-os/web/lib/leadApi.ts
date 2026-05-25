@@ -33,10 +33,14 @@ export interface ChangeStatusPayload {
   loss_reason?: LossReason
   loss_reason_text?: string
   junk_reason?: JunkReason
+  junk_note?: string // item 5: free-text details per junk sub-option
   nqr_reason?: NqrReason
   nqr_reason_text?: string
   restart_date?: string // YYYY-MM-DD
-  attempt_reason?: 'Invalid No' | 'Did not pick' | 'Call back later'
+  // Widened 2026-05-25 (item 3, 4): includes Phone Switched Off / Out of
+  // Network Area. Backend allow-list needs the same widening for these to
+  // round-trip — until then API returns 'invalid-sub_status'.
+  attempt_reason?: string
   callback_at?: string // ISO timestamp
 }
 

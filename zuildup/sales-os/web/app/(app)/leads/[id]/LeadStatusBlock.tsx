@@ -25,6 +25,7 @@ interface Props {
     loss_reason: string | null
     loss_reason_text: string | null
     junk_reason: string | null
+    junk_note: string | null
     nqr_reason: string | null
     nqr_reason_text: string | null
     restart_date: string | null

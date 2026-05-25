@@ -26,11 +26,9 @@ import {
   SUB_STATUS_BY_TOP,
   LOSS_REASONS,
   JUNK_REASONS,
-  NQR_REASONS,
   type StatusTop,
   type LossReason,
   type JunkReason,
-  type NqrReason,
 } from '@/lib/format'
 import type { ChangeStatusPayload } from '@/lib/leadApi'
 
@@ -40,6 +38,7 @@ interface Current {
   loss_reason?: string | null
   loss_reason_text?: string | null
   junk_reason?: string | null
+  junk_note?: string | null
   nqr_reason?: string | null
   nqr_reason_text?: string | null
   restart_date?: string | null
@@ -73,7 +72,9 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
   const [lossReason, setLossReason] = useState<string>(current?.loss_reason || '')
   const [lossReasonText, setLossReasonText] = useState<string>(current?.loss_reason_text || '')
   const [junkReason, setJunkReason] = useState<string>(current?.junk_reason || '')
-  const [nqrReason, setNqrReason] = useState<string>(current?.nqr_reason || '')
+  const [junkNote, setJunkNote] = useState<string>(current?.junk_note || '') // item 5
+  // nqr_reason dropdown is no longer rendered (items 6 + 7 → free-text only),
+  // but keep the field on the payload type for backward-compat / legacy reads.
   const [nqrReasonText, setNqrReasonText] = useState<string>(current?.nqr_reason_text || '')
   const [restartDate, setRestartDate] = useState<string>(current?.restart_date || '')
   const [callbackAt, setCallbackAt] = useState<string>(toLocalInput(current?.callback_at))
@@ -84,14 +85,17 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
   const subOptions = useMemo<readonly string[]>(() => (top ? SUB_STATUS_BY_TOP[top] : []), [top])
 
   // When top changes, reset sub and all reason fields.
+  // Item 1 (feedback sprint 2026-05-25): when user picks 'Qualified',
+  // the sub-status defaults to 'Call Done' (first in the list).
   function chooseTop(t: StatusTop) {
     if (t === top) return
     setTop(t)
-    setSub('')
+    const defaultSub = t === 'Qualified' ? 'Call Done' : ''
+    setSub(defaultSub)
     setLossReason('')
     setLossReasonText('')
     setJunkReason('')
-    setNqrReason('')
+    setJunkNote('')
     setNqrReasonText('')
     setRestartDate('')
     setCallbackAt('')
@@ -102,6 +106,25 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     setSub(s)
     setMsg(null)
   }
+
+  // Sub-statuses (under Attempted) that surface the optional "Call Back At"
+  // datetime input. Item 4 (feedback sprint 2026-05-25).
+  // 'Call back later' (existing) keeps the REQUIRED behavior. The others
+  // expose an OPTIONAL datetime so SPOC can schedule a callback if they want.
+  const ATTEMPTED_CALLBACK_SUBS = new Set([
+    'Did not pick',
+    'Phone Switched Off',
+    'Out of Network Area',
+  ])
+
+  // Sub-statuses (under Not Qualified) that show ONLY a free-text reason
+  // (no further reason dropdown). Item 6 + item 7.
+  const NQ_FREE_TEXT_ONLY = new Set([
+    'Below Min Order',
+    'No Immediate Req',
+    'No Plot',
+    'Did Not Enquire',
+  ])
 
   // --- validation ---------------------------------------------------------
   const validationError = useMemo<string | null>(() => {
@@ -114,18 +137,20 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     }
     if (sub === 'Junk') {
       if (!junkReason) return 'Pick a junk reason'
+      // junkNote is OPTIONAL — item 5 just exposes the textbox, server-side
+      // junk_note column accepts NULL or any text.
     }
     if (sub === 'No Immediate Req') {
       if (!restartDate) return 'Pick a restart date'
     }
-    if (sub === 'Below Min Order' || sub === 'No Immediate Req') {
-      if (nqrReason === 'Other' && !nqrReasonText.trim()) return 'Describe the "Other" reason'
-    }
+    // Item 6: Below Min Order / No Immediate Req use free-text-only flow now.
+    // No nqr_reason dropdown to validate. (Backward-compat: if a legacy lead
+    // has nqr_reason='Other' already, we still accept its nqr_reason_text.)
     if (sub === 'Call back later') {
       if (!callbackAt) return 'Pick a callback date & time'
     }
     return null
-  }, [top, sub, lossReason, lossReasonText, junkReason, nqrReason, nqrReasonText, restartDate, callbackAt])
+  }, [top, sub, lossReason, lossReasonText, junkReason, restartDate, callbackAt])
 
   const canSave = validationError === null && !saving
 
@@ -141,17 +166,26 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     }
     if (sub === 'Junk') {
       p.junk_reason = junkReason as JunkReason
+      // Item 5: free-text note alongside the reason (e.g. for Out of Zone —
+      // which state). Optional.
+      if (junkNote.trim()) p.junk_note = junkNote.trim()
     }
-    if (sub === 'Below Min Order' || sub === 'No Immediate Req') {
-      if (nqrReason) p.nqr_reason = nqrReason as NqrReason
+    // Item 6 + item 7: NQ free-text-only flow. Send nqr_reason_text only.
+    // nqr_reason is explicitly NOT sent for these — backend can treat absence
+    // as "no preset; see the free-text field". For legacy callers that still
+    // pass a preset (e.g. 'Other'), the field still round-trips below.
+    if (NQ_FREE_TEXT_ONLY.has(sub)) {
       if (nqrReasonText.trim()) p.nqr_reason_text = nqrReasonText.trim()
       if (sub === 'No Immediate Req' && restartDate) p.restart_date = restartDate
-      else if (restartDate) p.restart_date = restartDate
     }
     if (top === 'Attempted') {
       // sub_status doubles as attempt_reason in the API contract.
-      p.attempt_reason = sub as 'Invalid No' | 'Did not pick' | 'Call back later'
-      if (sub === 'Call back later' && callbackAt) {
+      p.attempt_reason = sub
+      // Item 4: schedule a callback datetime when SPOC picked a no-contact
+      // sub-status (Did not pick / Phone Switched Off / Out of Network Area)
+      // OR the explicit 'Call back later'. Datetime input is optional for
+      // the new sub-statuses; required for 'Call back later'.
+      if ((sub === 'Call back later' || ATTEMPTED_CALLBACK_SUBS.has(sub)) && callbackAt) {
         // Convert the local datetime input → ISO (toISOString in UTC)
         p.callback_at = new Date(callbackAt).toISOString()
       }
@@ -256,53 +290,67 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
+          {/* Item 5: free-text note tied to junk_note column. */}
+          {junkReason && (
+            <>
+              <label className="block text-xs font-medium text-gray-700 pt-1">Add details (optional)</label>
+              <textarea
+                value={junkNote}
+                onChange={(e) => setJunkNote(e.target.value)}
+                placeholder="e.g. for Out of Zone — which state / city"
+                rows={2}
+                name="junk_note"
+                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+              />
+            </>
+          )}
         </div>
       )}
 
-      {(sub === 'Below Min Order' || sub === 'No Immediate Req') && (
+      {NQ_FREE_TEXT_ONLY.has(sub) && (
         <div className="space-y-2 bg-rose-50 border border-rose-200 rounded p-3">
-          <label className="block text-xs font-medium text-gray-700">Not-qualified reason (optional)</label>
-          <select
-            value={nqrReason}
-            onChange={(e) => setNqrReason(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-          >
-            <option value="">Pick one…</option>
-            {NQR_REASONS.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-          {nqrReason && (
-            <textarea
-              value={nqrReasonText}
-              onChange={(e) => setNqrReasonText(e.target.value)}
-              placeholder={nqrReason === 'Other' ? 'Describe (required) *' : 'Optional details'}
-              rows={2}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-            />
-          )}
-          <label className="block text-xs font-medium text-gray-700 pt-1">
-            Restart date {sub === 'No Immediate Req' ? '*' : '(optional)'}
-          </label>
-          <input
-            type="date"
-            value={restartDate}
-            onChange={(e) => setRestartDate(e.target.value)}
+          {/* Item 6 + 7: free-text only — NO reason dropdown for these subs. */}
+          <label className="block text-xs font-medium text-gray-700">Reason (details)</label>
+          <textarea
+            value={nqrReasonText}
+            onChange={(e) => setNqrReasonText(e.target.value)}
+            placeholder="Add context for this disposition"
+            rows={2}
             className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
           />
+          {sub === 'No Immediate Req' && (
+            <>
+              <label className="block text-xs font-medium text-gray-700 pt-1">Restart date *</label>
+              <input
+                type="date"
+                value={restartDate}
+                onChange={(e) => setRestartDate(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+              />
+            </>
+          )}
         </div>
       )}
 
-      {sub === 'Call back later' && (
+      {/* Item 4: callback datetime — required for 'Call back later', optional
+          for the new no-contact sub-statuses (Did not pick / Phone Switched
+          Off / Out of Network Area). */}
+      {(sub === 'Call back later' || ATTEMPTED_CALLBACK_SUBS.has(sub)) && (
         <div className="space-y-2 bg-amber-50 border border-amber-200 rounded p-3">
-          <label className="block text-xs font-medium text-gray-700">Callback at *</label>
+          <label className="block text-xs font-medium text-gray-700">
+            Call back at {sub === 'Call back later' ? '*' : '(optional)'}
+          </label>
           <input
             type="datetime-local"
             value={callbackAt}
             onChange={(e) => setCallbackAt(e.target.value)}
             className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
           />
-          <p className="text-[11px] text-gray-500">Required — sales will be reminded at this time.</p>
+          <p className="text-[11px] text-gray-500">
+            {sub === 'Call back later'
+              ? 'Required — sales will be reminded at this time.'
+              : 'Set a follow-up time; we’ll surface it on the dashboard.'}
+          </p>
         </div>
       )}
 

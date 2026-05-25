@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { FilterBar } from '@/components/FilterBar'
 import { SortDropdown } from '@/components/SortDropdown'
 import ManualLeadModal from '@/components/ManualLeadModal'
@@ -13,6 +14,7 @@ interface Props {
 
 export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
   const [modalOpen, setModalOpen] = useState(false)
+  const router = useRouter()
 
   return (
     <div className="space-y-3 mb-4">
@@ -37,7 +39,9 @@ export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
         onClose={() => setModalOpen(false)}
         onCreated={(lead) => {
           // Navigate to /leads with the new lead inline-opened (Lane D URL convention).
-          window.location.href = `/leads?open=${encodeURIComponent(lead.id)}`
+          // Item 11 (feedback 2026-05-25): SPA transition rather than full doc reload.
+          router.push(`/leads?open=${encodeURIComponent(lead.id)}`)
+          router.refresh()
         }}
       />
     </div>

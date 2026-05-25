@@ -11,7 +11,8 @@ import {
   STATUS_COLOR,
   statusTopKey,
 } from '@/lib/format'
-import DispositionBar from './DispositionBar'
+// Item 9 (feedback 2026-05-25): DispositionBar removed from this page;
+// LeadStatusBlock / StatusPicker is now the only disposition surface.
 import Assignment from './Assignment'
 import ActivityLogger from './ActivityLogger'
 import Attachments from './Attachments'
@@ -98,7 +99,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <DispositionBar leadId={lead.id} currentStatus={lead.status} canEdit={canDispose} />
+      {/* DispositionBar removed 2026-05-25 (feedback item 9). */}
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Project + Comms + Activity */}
@@ -195,6 +196,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 loss_reason: lead.loss_reason ?? null,
                 loss_reason_text: lead.loss_reason_text ?? null,
                 junk_reason: lead.junk_reason ?? null,
+                junk_note: lead.junk_note ?? null,
                 nqr_reason: lead.nqr_reason ?? null,
                 nqr_reason_text: lead.nqr_reason_text ?? null,
                 restart_date: lead.restart_date ?? null,
@@ -204,6 +206,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <div className="mt-3 text-xs text-gray-500">
               Next action: <span className={nextDue.className}>{nextDue.text}</span>
             </div>
+            {/* Item 2 (feedback 2026-05-25): inline collapsible activity logger
+                in the right column, using the existing <ActivityLogger /> form. */}
+            {canDispose && (
+              <details className="mt-4 border-t border-gray-100 pt-3">
+                <summary className="text-sm font-medium text-gray-700 cursor-pointer select-none hover:text-gray-900">
+                  + Log Activity
+                </summary>
+                <div className="mt-3">
+                  <ActivityLogger leadId={lead.id} />
+                </div>
+              </details>
+            )}
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

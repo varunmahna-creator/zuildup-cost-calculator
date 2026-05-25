@@ -61,9 +61,12 @@ export async function changeStatus(formData: FormData) {
   const result = await apiPost(`/leads/${leadId}/status`, { status: newStatus, reason })
   if (!result.ok) return { error: result.error || 'Failed' }
 
+  // Item 11 (feedback 2026-05-25): trim revalidatePath fan-out. Only the
+  // current lead detail page needs to refresh — /leads and /dashboard are
+  // either polled by client or refreshed on their next visit. Previously
+  // every disposition rebuilt 3 routes server-side, which is the dominant
+  // contributor to the "sluggish" feel after a click.
   revalidatePath('/leads/' + leadId)
-  revalidatePath('/leads')
-  revalidatePath('/dashboard')
   return { ok: true }
 }
 
@@ -76,10 +79,10 @@ export async function reassignLead(formData: FormData): Promise<void> {
   if (!leadId) return
 
   await apiPost(`/leads/${leadId}/assign`, { assigned_to: assignTo })
+  // Item 11: assignment changes do need /unassigned to refresh, but /leads
+  // and /dashboard can wait until their next render.
   revalidatePath('/leads/' + leadId)
-  revalidatePath('/leads')
   revalidatePath('/unassigned')
-  revalidatePath('/dashboard')
 }
 
 // Client-callable variant (returns result object).
@@ -108,9 +111,9 @@ export async function logActivity(formData: FormData) {
   })
   if (!result.ok) return { error: result.error || 'Failed' }
 
+  // Item 11: just rebuild the lead detail; inbox + dashboard poll on their
+  // own intervals.
   revalidatePath('/leads/' + leadId)
-  revalidatePath('/inbox')
-  revalidatePath('/dashboard')
   return { ok: true }
 }
 
@@ -183,8 +186,6 @@ export async function saveNextAction(formData: FormData): Promise<{ ok?: boolean
   if (!result.ok) return { error: result.error || 'Failed' }
 
   revalidatePath('/leads/' + leadId)
-  revalidatePath('/dashboard')
-  revalidatePath('/admin/team-actions')
   return { ok: true }
 }
 
@@ -196,7 +197,5 @@ export async function markActionDone(formData: FormData): Promise<{ ok?: boolean
   if (!result.ok) return { error: result.error || 'Failed' }
 
   revalidatePath('/leads/' + leadId)
-  revalidatePath('/dashboard')
-  revalidatePath('/admin/team-actions')
   return { ok: true }
 }

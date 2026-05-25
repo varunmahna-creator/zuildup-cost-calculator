@@ -193,12 +193,16 @@ export default function LeadRowExpanded({
               >
                 Schedule callback
               </Link>
-              <Link
+              {/* Item 8 (feedback 2026-05-25): open in a new tab so SPOC keeps
+                  their list context. */}
+              <a
                 href={`/leads/${lead.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-xs px-2 py-1 rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 ml-auto"
               >
                 Open full detail →
-              </Link>
+              </a>
             </div>
           </div>
         </div>
