@@ -65,6 +65,8 @@ export type Lead = {
   status: string
   substatus_reason: string | null
   lead_source: string | null
+  source?: string | null
+  partner?: string | null
   tier_hint: string | null
   assigned_to: string | null
   assigned_to_name?: string | null

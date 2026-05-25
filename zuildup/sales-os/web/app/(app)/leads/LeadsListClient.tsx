@@ -46,6 +46,30 @@ function statusPillClass(lead: any): string {
   return 'bg-slate-100 text-slate-800'
 }
 
+// Display maps for Source / Partner columns (clean values, not lead_source campaign IDs)
+// hotfix 2026-05-25: lead_source contained campaign-level IDs which were leaking into
+// the Source column. The proper fields are `source` and `partner`.
+const SOURCE_LABELS: Record<string, string> = {
+  meta: 'Meta',
+  google: 'Google',
+  manual: 'Manual',
+}
+const PARTNER_LABELS: Record<string, string> = {
+  y2g: 'Y2G',
+  zu: 'ZU',
+  organic: 'Organic',
+}
+function displaySource(v: string | null | undefined): string {
+  if (!v) return '—'
+  const k = String(v).toLowerCase()
+  return SOURCE_LABELS[k] ?? v
+}
+function displayPartner(v: string | null | undefined): string {
+  if (!v) return '—'
+  const k = String(v).toLowerCase()
+  return PARTNER_LABELS[k] ?? v
+}
+
 function tierPillClass(tier: string | null | undefined): string {
   if (tier === 'A') return 'bg-indigo-100 text-indigo-800'
   if (tier === 'B') return 'bg-slate-100 text-slate-800'
@@ -140,6 +164,8 @@ export default function LeadsListClient({
         status: newLead.status || 'New',
         substatus_reason: null,
         lead_source: newLead.lead_source,
+        source: 'manual',
+        partner: null,
         tier_hint: newLead.tier_hint,
         assigned_to: null,
         date_received: null,
@@ -210,6 +236,7 @@ export default function LeadsListClient({
                   <th scope="col" className="px-3 py-2 text-left">Name</th>
                   <th scope="col" className="px-3 py-2 text-left">Phone</th>
                   <th scope="col" className="px-3 py-2 text-left">Source</th>
+                  <th scope="col" className="px-3 py-2 text-left">Partner</th>
                   <th scope="col" className="px-3 py-2 text-left">Tier</th>
                   <th scope="col" className="px-3 py-2 text-left">Status</th>
                   <th scope="col" className="px-3 py-2 text-left">Assignee</th>
@@ -241,9 +268,18 @@ export default function LeadsListClient({
                           {lead.phone || '—'}
                         </td>
                         <td className="px-3 py-2 text-sm">
-                          {lead.lead_source ? (
-                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 capitalize">
-                              {lead.lead_source}
+                          {lead.source ? (
+                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                              {displaySource(lead.source)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-sm">
+                          {lead.partner ? (
+                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-sky-100 text-sky-800">
+                              {displayPartner(lead.partner)}
                             </span>
                           ) : (
                             <span className="text-gray-400">—</span>
@@ -284,7 +320,7 @@ export default function LeadsListClient({
                       </tr>
                       {isOpen && (
                         <tr className="bg-blue-50/40">
-                          <td colSpan={10} className="px-0 py-0">
+                          <td colSpan={11} className="px-0 py-0">
                             <LeadRowExpanded
                               lead={{
                                 id: lead.id,
