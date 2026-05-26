@@ -13,6 +13,7 @@ import {
 } from '@/lib/leadApi'
 import StatusPicker from './StatusPicker'
 import TierBadge from './TierBadge'
+import InlineActivityLogger from './InlineActivityLogger'
 
 export interface LeadRowExpandedLead {
   id: string
@@ -291,6 +292,15 @@ export default function LeadRowExpanded({
               </ul>
             )}
           </div>
+          {/* Item 2 (feedback 2026-05-26): inline activity logger so SPOCs
+              can log calls/notes/next-actions without leaving /leads. */}
+          <InlineActivityLogger
+            leadId={lead.id}
+            onLogged={() => {
+              // Re-fetch the activities list so the new entry shows up.
+              fetchLeadActivities(lead.id, 5).then((acts) => setActivities(acts))
+            }}
+          />
         </div>
       </div>
     </div>

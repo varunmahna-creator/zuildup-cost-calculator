@@ -93,6 +93,13 @@ export function FilterBar({
       mutator(next)
       const qs = next.toString()
       router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false })
+      // Item 5 (feedback 2026-05-26): Next 15 App Router server components do
+      // NOT re-fetch on router.replace() alone — the URL changes but the RSC
+      // tree is cached. Explicit refresh() invalidates the cache so the
+      // /leads server component re-reads searchParams and re-runs the API
+      // call. Without this, filter changes (and "Clear all") silently
+      // failed to update the list.
+      router.refresh()
     },
     [router, pathname, searchParams],
   )

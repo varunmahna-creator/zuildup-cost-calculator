@@ -25,7 +25,7 @@ interface SearchParams {
 }
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const user = await requireRole(['admin', 'director'])
+  const user = await requireRole(['admin', 'director', 'spoc'])
   const params = await searchParams
 
   const PAGE_SIZE = 50
@@ -67,7 +67,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <div>
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Leads</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {user.role === 'spoc' ? 'My Leads' : 'All Leads'}
+          </h1>
           <p className="text-sm text-gray-500 mt-1">{totalCount} total leads</p>
         </div>
       </div>

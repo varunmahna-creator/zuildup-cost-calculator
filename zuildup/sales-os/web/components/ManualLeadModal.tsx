@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createManualLead, type ManualLeadResponse } from '@/lib/leadApi'
+import { createManualLead, fetchLeadsByPhone, type ManualLeadResponse, type PriorMatch } from '@/lib/leadApi'
 
 interface Props {
   open: boolean
@@ -31,6 +31,10 @@ export default function ManualLeadModal({ open, onClose, onCreated }: Props) {
   const [err, setErr] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
+  // Item 8 (feedback 2026-05-26): show details of any existing lead with
+  // the same phone number so the operator knows the prior context.
+  const [priors, setPriors] = useState<PriorMatch[]>([])
+  const [priorLoading, setPriorLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -49,6 +53,23 @@ export default function ManualLeadModal({ open, onClose, onCreated }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, submitting, onClose])
+
+  // Debounced lookup: 400ms after user stops typing, hit the search API.
+  useEffect(() => {
+    if (!open) return
+    const trimmed = phone.trim()
+    if (!trimmed || trimmed.replace(/[^\d]/g, '').length < 6) {
+      setPriors([])
+      return
+    }
+    setPriorLoading(true)
+    const t = setTimeout(async () => {
+      const matches = await fetchLeadsByPhone(trimmed)
+      setPriors(matches)
+      setPriorLoading(false)
+    }, 400)
+    return () => clearTimeout(t)
+  }, [phone, open])
 
   if (!open) return null
 
@@ -149,6 +170,57 @@ export default function ManualLeadModal({ open, onClose, onCreated }: Props) {
               autoComplete="off"
             />
           </div>
+          {priorLoading && (
+            <p className="text-xs text-gray-500 italic">Checking for prior submissions…</p>
+          )}
+          {!priorLoading && priors.length > 0 && (
+            <div className="rounded border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-900">
+                ⚠ Prior submission{priors.length > 1 ? 's' : ''} found for this phone
+              </p>
+              {priors.map((pr) => (
+                <div key={pr.id} className="text-xs bg-white rounded border border-amber-200 p-2 space-y-0.5">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium text-gray-900 truncate">
+                      {pr.name || '(no name)'}
+                    </span>
+                    <span className="text-gray-500 shrink-0">
+                      {new Date(pr.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <div className="text-gray-700">{pr.phone}{pr.email ? ' · ' + pr.email : ''}</div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Status:</span>{' '}
+                    {pr.status_top
+                      ? pr.status_top + (pr.sub_status ? ' / ' + pr.sub_status : '')
+                      : (pr.status || '—')}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Source:</span>{' '}
+                    {pr.source || pr.lead_source || '—'}
+                    {pr.partner ? ' (' + pr.partner + ')' : ''}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Assignee:</span>{' '}
+                    {pr.assigned_to_name || (pr.assigned_to ? pr.assigned_to.slice(0,8) : 'unassigned')}
+                  </div>
+                  {pr.last_activity_at && (
+                    <div className="text-gray-500">
+                      Last activity: {new Date(pr.last_activity_at).toLocaleString('en-IN')}
+                    </div>
+                  )}
+                  <a
+                    href={`/leads/${pr.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-blue-700 hover:underline mt-1"
+                  >
+                    Open this lead →
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
             <input

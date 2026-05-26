@@ -1,6 +1,7 @@
 import { requireAuth } from '@/lib/auth'
 import { getDashboardBuckets, getDashboardAnalytics, getTeamOverdue, getUsers, type Lead } from '@/lib/inboxApiServer'
 import Link from 'next/link'
+import BucketRow from '@/components/BucketRow'
 
 export const dynamic = 'force-dynamic'
 
@@ -155,24 +156,16 @@ function Bucket({
       ) : (
         <ul className="space-y-1">
           {leads.slice(0, 12).map((l) => (
-            <li key={l.id}>
-              <Link
-                href={`/leads/${l.id}`}
-                className="block bg-white rounded px-2 py-1.5 hover:shadow-sm border border-transparent hover:border-gray-200 transition"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-gray-900 truncate">
-                    {l.name || '(no name)'}
-                  </span>
-                  <span className={`text-xs whitespace-nowrap ${bucketColor(new Date(l.next_action_due!))}`}>
-                    {humanizeRelative(new Date(l.next_action_due!))}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-600 truncate">
-                  {l.next_action_type} {l.phone ? `· ${l.phone}` : ''}
-                </div>
-              </Link>
-            </li>
+            <BucketRow
+              key={l.id}
+              id={l.id}
+              name={l.name}
+              phone={l.phone}
+              nextActionType={l.next_action_type}
+              nextActionDue={l.next_action_due}
+              relativeLabel={humanizeRelative(new Date(l.next_action_due!))}
+              relativeColorClass={bucketColor(new Date(l.next_action_due!))}
+            />
           ))}
           {leads.length > 12 && (
             <li className="text-xs text-gray-500 text-center pt-1">

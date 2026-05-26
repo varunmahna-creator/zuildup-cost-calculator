@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { MessageSquare } from 'lucide-react'
+import { Suspense } from 'react'
+import NavProgress from '@/components/NavProgress'
 
 export default async function AppLayout({
   children,
@@ -20,6 +22,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Suspense fallback={null}><NavProgress /></Suspense>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -49,6 +52,11 @@ export default async function AppLayout({
                       Team Actions
                     </Link>
                   </>
+                )}
+                {user.role === 'spoc' && (
+                  <Link href="/leads" className="text-gray-700 hover:text-gray-900">
+                    My Leads
+                  </Link>
                 )}
                 {user.role === 'admin' && (
                   <Link href="/admin/users" className="text-gray-700 hover:text-gray-900">

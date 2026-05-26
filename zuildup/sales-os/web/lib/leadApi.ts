@@ -253,3 +253,41 @@ export async function fetchPriorSubmissions(
     return []
   }
 }
+
+
+// Item 8 (feedback 2026-05-26): look up existing leads by phone number to
+// surface duplicate-submission details in the ManualLeadModal. Reuses the
+// existing /leads?q= ILIKE search — no new backend endpoint needed.
+export interface PriorMatch {
+  id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  status: string | null
+  status_top: string | null
+  sub_status: string | null
+  lead_source: string | null
+  source: string | null
+  partner: string | null
+  assigned_to: string | null
+  assigned_to_name: string | null
+  last_activity_at: string | null
+  created_at: string
+}
+
+export async function fetchLeadsByPhone(phone: string): Promise<PriorMatch[]> {
+  if (!INBOX_API) return []
+  const cleaned = phone.replace(/[^\d+]/g, '')
+  if (cleaned.length < 6) return []
+  const last10 = cleaned.replace(/^\+?91/, '').slice(-10)
+  if (last10.length < 6) return []
+  try {
+    const r = await inboxFetch(`${INBOX_API}/leads?q=${encodeURIComponent(last10)}&limit=5`)
+    if (!r.ok) return []
+    const json = await r.json()
+    return (json?.rows || []) as PriorMatch[]
+  } catch (e) {
+    console.warn('[leadApi] fetchLeadsByPhone error:', e)
+    return []
+  }
+}
