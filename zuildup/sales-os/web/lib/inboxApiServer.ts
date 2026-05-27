@@ -121,6 +121,7 @@ export async function getLeadsList(params: {
   sub_status?: string
   assigned_to?: string
   lead_source?: string
+  partner?: string  // 2026-05-27: top-filter partner bucket (y2g | zu | organic)
   tier_hint?: string
   created_from?: string
   created_to?: string

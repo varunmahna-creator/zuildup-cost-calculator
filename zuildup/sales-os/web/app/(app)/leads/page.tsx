@@ -1,5 +1,5 @@
 import { requireRole } from '@/lib/auth'
-import { getLeadsList, getLeadSources, getUsers } from '@/lib/inboxApiServer'
+import { getLeadsList, getUsers } from '@/lib/inboxApiServer'
 import Link from 'next/link'
 import LeadsListClient from './LeadsListClient'
 import LeadsHeaderClient from './LeadsHeaderClient'
@@ -17,12 +17,22 @@ interface SearchParams {
   tier?: string  // FilterBar uses 'tier' key
   source?: string  // FilterBar uses 'source' key for lead_source
   assignee?: string  // FilterBar uses 'assignee' key for assigned_to
+  partner?: string  // Top-filter partner key (y2g | zu)
   from?: string
   to?: string
   sort?: string
   page?: string
   open?: string
 }
+
+// Top-filter partner options.
+// Feedback 2026-05-27 (Varun): collapse the campaign-level lead_source pills
+// into clean partner buckets — the sales team should only see Y2G vs ZuildUp,
+// never the underlying campaign IDs. API param is `partner` (values: y2g | zu).
+const PARTNER_FILTERS: { key: string; label: string }[] = [
+  { key: 'y2g', label: 'Y2G' },
+  { key: 'zu', label: 'ZuildUp' },
+]
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requireRole(['admin', 'director', 'spoc'])
@@ -37,7 +47,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const assignedTo = params.assignee ?? params.assigned_to
   const tier = params.tier ?? params.tier_hint
 
-  const [leadsResp, sourcesResp, usersResp] = await Promise.all([
+  const [leadsResp, usersResp] = await Promise.all([
     getLeadsList({
       q: params.q,
       status: params.status,
@@ -45,6 +55,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       sub_status: params.sub_status,
       assigned_to: assignedTo,
       lead_source: leadSource,
+      partner: params.partner,
       tier_hint: tier,
       created_from: params.from,
       created_to: params.to,
@@ -52,13 +63,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       page,
       limit: PAGE_SIZE,
     }),
-    getLeadSources(),
     getUsers(),
   ])
 
   const leads = leadsResp?.rows || []
   const totalCount = leadsResp?.total || 0
-  const sources = sourcesResp?.sources || []
   const users = usersResp?.users || []
   const totalPages = totalCount ? Math.ceil(totalCount / PAGE_SIZE) : 1
   const canOverrideTier = user.role === 'admin' || user.role === 'director'
@@ -74,38 +83,41 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      {/* Source filter pills (kept from Lane D) */}
-      {sources.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
+      {/* Top partner-filter pills.
+          Feedback 2026-05-27 (Varun): replaced raw lead_source pills (which leaked
+          campaign IDs into the sales-team UI) with two clean buckets — Y2G + ZuildUp.
+          Sales team should never see campaign-level details here. */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link
+          href={{ query: { ...params, partner: undefined, page: '1' } }}
+          className={`px-3 py-1 rounded-full text-xs font-medium border ${
+            !params.partner
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          All
+        </Link>
+        {PARTNER_FILTERS.map((p) => (
           <Link
-            href="/leads"
+            key={p.key}
+            href={{ query: { ...params, partner: p.key, page: '1' } }}
             className={`px-3 py-1 rounded-full text-xs font-medium border ${
-              !leadSource
+              params.partner === p.key
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
             }`}
           >
-            All ({sources.reduce((s, x) => s + x.n, 0)})
+            {p.label}
           </Link>
-          {sources.map((src) => (
-            <Link
-              key={src.lead_source}
-              href={{ query: { ...params, lead_source: src.lead_source, source: src.lead_source, page: '1' } }}
-              className={`px-3 py-1 rounded-full text-xs font-medium border capitalize ${
-                leadSource === src.lead_source
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              {src.lead_source} ({src.n})
-            </Link>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* Lane E FilterBar + SortDropdown header (replaces Lane D's inline form) */}
+      {/* Lane E FilterBar + SortDropdown header (replaces Lane D's inline form).
+          leadSources intentionally empty: campaign-level Source dropdown was hiding
+          the same campaign IDs as the old top pills — sales team doesn't need it. */}
       <LeadsHeaderClient
-        leadSources={sources.map((s) => s.lead_source).filter(Boolean) as string[]}
+        leadSources={[]}
         assignees={users.map((u) => ({ id: u.id, name: u.name }))}
       />
 
