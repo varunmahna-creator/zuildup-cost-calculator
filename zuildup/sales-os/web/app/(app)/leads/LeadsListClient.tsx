@@ -21,6 +21,7 @@ interface Props {
   initialOpen?: string | null
   page?: number
   pageSize?: number
+  totalCount?: number
 }
 
 // Border colour by `status_top` (Lane B field) — fall back to legacy mapping
@@ -84,6 +85,7 @@ export default function LeadsListClient({
   initialOpen,
   page = 1,
   pageSize = 50,
+  totalCount = 0,
 }: Props) {
   const router = useRouter()
   const search = useSearchParams()
@@ -201,7 +203,13 @@ export default function LeadsListClient({
     router.refresh()
   }, [router, updateOpenParam])
 
+  // Serial numbering: feedback 2026-05-27 (Varun) — latest lead should have the
+  // biggest number, not be #1. Default sort is newest-first, so on page 1 the
+  // newest row should show `totalCount`, then count down. On page N, the top row
+  // is `totalCount - (page-1)*pageSize`. Falls back to old ascending numbering
+  // if totalCount isn't supplied (back-compat).
   const baseSerial = (page - 1) * pageSize
+  const startSerial = totalCount > 0 ? totalCount - baseSerial : baseSerial
 
   return (
     <>
@@ -250,7 +258,7 @@ export default function LeadsListClient({
                   const isOpen = openId === lead.id
                   const nextDue = formatDateRelative(lead.next_action_due)
                   const assigneeName = lead.assigned_to ? usersById[lead.assigned_to] : null
-                  const serial = baseSerial + idx + 1
+                  const serial = totalCount > 0 ? startSerial - idx : baseSerial + idx + 1
                   return (
                     <Fragment key={lead.id}>
                       <tr

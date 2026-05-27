@@ -128,6 +128,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         initialOpen={params.open ?? null}
         page={page}
         pageSize={PAGE_SIZE}
+        totalCount={totalCount}
       />
 
       {/* Pagination */}
