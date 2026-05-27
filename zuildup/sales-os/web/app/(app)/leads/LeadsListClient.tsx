@@ -334,6 +334,7 @@ export default function LeadsListClient({
                                 related_count: (lead as any).related_count,
                                 status_top: (lead as any).status_top,
                                 sub_status: (lead as any).sub_status,
+                                fields: (lead as any).fields,
                               }}
                               canOverrideTier={canOverrideTier}
                               onStatusSaved={handleStatusSaved}

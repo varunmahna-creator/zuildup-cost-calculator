@@ -35,6 +35,56 @@ export interface LeadRowExpandedLead {
   nqr_reason_text?: string | null
   restart_date?: string | null
   callback_at?: string | null
+  // jsonb of original form-submission fields (varies by lead source)
+  fields?: Record<string, any> | null
+}
+
+// Helpers — Sales OS feedback 2026-05-27: surface form-submitted details inline
+// so SPOCs don't have to navigate into the full lead page to see budget /
+// plot_status / readiness etc. Real-world data has TWO key conventions:
+//   (a) snake_clean keys (FAR LP, newer forms): budget, plot_status, plot_size,
+//       build_readiness, preferred_tier, city, plot_area, ...
+//   (b) question-text keys (Meta Lead Ads): "what_is_your_budget?",
+//       "do_you_own_a_plot_or_site?", "when_are_you_planning_to_construct?",
+//       "plot_location", ...
+// We map both to the same 6 display rows below.
+type FieldRow = { label: string; value: string }
+const FIELD_LABELS: Array<{ label: string; keys: string[] }> = [
+  { label: 'Budget',          keys: ['budget', 'what_is_your_budget?'] },
+  { label: 'Plot status',     keys: ['plot_status', 'do_you_own_a_plot_or_site?'] },
+  { label: 'Plot size',       keys: ['plot_size', 'plot_area', 'plotArea'] },
+  { label: 'Readiness',       keys: ['build_readiness', 'when_are_you_planning_to_construct?'] },
+  { label: 'Preferred tier',  keys: ['preferred_tier'] },
+  { label: 'City',            keys: ['city', 'plot_location'] },
+]
+const HIDE_KEYS = new Set([
+  'full_name', 'email', 'phone_number', 'phone', 'name',
+  'page_slug', 'source', 'form_type',
+])
+function extractFieldRows(fields: Record<string, any> | null | undefined): { primary: FieldRow[]; extras: FieldRow[] } {
+  if (!fields || typeof fields !== 'object') return { primary: [], extras: [] }
+  const used = new Set<string>()
+  const primary: FieldRow[] = []
+  for (const { label, keys } of FIELD_LABELS) {
+    for (const k of keys) {
+      const v = fields[k]
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        primary.push({ label, value: String(v).replace(/_/g, ' ').trim() })
+        used.add(k)
+        break
+      }
+    }
+  }
+  const extras: FieldRow[] = []
+  for (const [k, v] of Object.entries(fields)) {
+    if (used.has(k) || HIDE_KEYS.has(k)) continue
+    if (v === null || v === undefined || String(v).trim() === '') continue
+    extras.push({
+      label: k.replace(/[?_]/g, ' ').replace(/\s+/g, ' ').trim(),
+      value: String(v).replace(/_/g, ' ').trim(),
+    })
+  }
+  return { primary, extras }
 }
 
 interface Props {
@@ -206,6 +256,44 @@ export default function LeadRowExpanded({
               </a>
             </div>
           </div>
+
+          {/* Form submission details — feedback 2026-05-27.
+              Surfaces keys the user actually filled on the lead form so
+              SPOCs can prioritize without opening full lead page. */}
+          {(() => {
+            const { primary, extras } = extractFieldRows(lead.fields)
+            if (primary.length === 0 && extras.length === 0) return null
+            return (
+              <div className="bg-white rounded border border-gray-200 p-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Form details
+                </h4>
+                <dl className="text-sm space-y-1">
+                  {primary.map((row) => (
+                    <div key={row.label} className="flex gap-2">
+                      <dt className="text-gray-500 w-28 shrink-0">{row.label}</dt>
+                      <dd className="text-gray-900 flex-1 font-medium">{row.value}</dd>
+                    </div>
+                  ))}
+                  {extras.length > 0 && (
+                    <details className="pt-1">
+                      <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                        More details ({extras.length})
+                      </summary>
+                      <div className="mt-1 space-y-1">
+                        {extras.map((row) => (
+                          <div key={row.label} className="flex gap-2">
+                            <dt className="text-gray-500 w-28 shrink-0 capitalize">{row.label}</dt>
+                            <dd className="text-gray-900 flex-1">{row.value}</dd>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </dl>
+              </div>
+            )
+          })()}
         </div>
 
         {/* MIDDLE: Prior submissions */}

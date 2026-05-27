@@ -86,6 +86,7 @@ export type Lead = {
   campaign_id: string | null
   ad_id: string | null
   platform: string | null
+  fields?: Record<string, any> | null
   // --- QoL sprint 2026-05-22 new status model (Lane A schema, Lane B API) --
   // Optional because back-compat: existing rows may not yet have these set.
   status_top?: string | null
