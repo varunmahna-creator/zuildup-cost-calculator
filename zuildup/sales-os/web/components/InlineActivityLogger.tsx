@@ -43,21 +43,37 @@ export default function InlineActivityLogger({
         setMsg('Error: ' + res.error)
         setIsError(true)
       } else {
-        setMsg('Activity logged ✓')
+        setMsg('Saved ✓ Refreshing…')
         setIsError(false)
         formRef.current?.reset()
         setType('call')
         onLogged?.()
-        // Feedback 2026-05-28 (Sales team): after saving an action the
-        // list row stays stale until manual refresh — status pill,
-        // next-action time, last-activity column don't update. The server
-        // action revalidates /leads/[id] but the SPOC is on /leads, so we
-        // also need to refresh the current route to pick up the new
-        // status_top / sub_status / callback_at on the parent row.
-        router.refresh()
-        // Clear success msg after 2.5s
-        setTimeout(() => setMsg(null), 2500)
       }
+    })
+    // Feedback 2026-05-28 PM (Sales team round 2): the previous fix put
+    // router.refresh() INSIDE startTransition, which queues it as a
+    // non-urgent update — so the row visually lagged the "Saved ✓"
+    // message and SPOCs assumed it hadn't worked and hit manual refresh.
+    //
+    // Trigger router.refresh() in a microtask AFTER the transition
+    // completes so the cached server tree gets re-fetched
+    // synchronously-ish from the SPOC's POV. We also keep the
+    // "Refreshing…" indicator up until the refresh resolves so the
+    // SPOC has visible feedback that something is happening.
+    Promise.resolve().then(() => {
+      try {
+        router.refresh()
+      } catch {
+        /* no-op — refresh is best-effort */
+      }
+      // Replace "Refreshing…" with the final "Saved ✓" after a short delay
+      setTimeout(() => {
+        setMsg((prev) => (prev && prev.startsWith('Saved') ? 'Saved ✓' : prev))
+      }, 600)
+      // Clear success msg after 2.5s total
+      setTimeout(() => {
+        setMsg((prev) => (prev && prev.startsWith('Saved') ? null : prev))
+      }, 2500)
     })
   }
 
