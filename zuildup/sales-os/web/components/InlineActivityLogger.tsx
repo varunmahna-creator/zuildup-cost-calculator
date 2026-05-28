@@ -12,6 +12,7 @@
  */
 
 import { useState, useTransition, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { logActivity } from '@/app/(app)/leads/[id]/actions'
 import { ACTIVITY_TYPES } from '@/lib/format'
 
@@ -22,6 +23,7 @@ export default function InlineActivityLogger({
   leadId: string
   onLogged?: () => void
 }) {
+  const router = useRouter()
   const [type, setType] = useState<string>('call')
   const [pending, startTransition] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
@@ -46,6 +48,13 @@ export default function InlineActivityLogger({
         formRef.current?.reset()
         setType('call')
         onLogged?.()
+        // Feedback 2026-05-28 (Sales team): after saving an action the
+        // list row stays stale until manual refresh — status pill,
+        // next-action time, last-activity column don't update. The server
+        // action revalidates /leads/[id] but the SPOC is on /leads, so we
+        // also need to refresh the current route to pick up the new
+        // status_top / sub_status / callback_at on the parent row.
+        router.refresh()
         // Clear success msg after 2.5s
         setTimeout(() => setMsg(null), 2500)
       }

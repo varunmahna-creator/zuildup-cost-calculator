@@ -114,6 +114,12 @@ export async function logActivity(formData: FormData) {
   // Item 11: just rebuild the lead detail; inbox + dashboard poll on their
   // own intervals.
   revalidatePath('/leads/' + leadId)
+  // Feedback 2026-05-28 (Sales team): also revalidate /leads so the list
+  // page reflects the new status_top / sub_status / callback_at without a
+  // manual hard refresh. The client InlineActivityLogger also fires
+  // router.refresh() but adding this here makes any other entry point
+  // (e.g. the detail page) consistent too.
+  revalidatePath('/leads')
   return { ok: true }
 }
 
