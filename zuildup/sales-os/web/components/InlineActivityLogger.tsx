@@ -37,41 +37,46 @@ export default function InlineActivityLogger({
     const fd = new FormData(e.currentTarget)
     fd.set('leadId', leadId)
     fd.set('type', type)
+    // Sales feedback 2026-05-29 (round 3): the previous version scheduled
+    // router.refresh() in a microtask via Promise.resolve().then(...) right
+    // after calling startTransition. Microtasks run IMMEDIATELY after the
+    // current synchronous frame — BEFORE the `await logActivity(fd)` inside
+    // the transition completes. So router.refresh() was firing while the
+    // POST was still in flight, fetching stale list data; once the POST
+    // resolved, the list still showed the old next_action/notes. SPOCs
+    // saw "Saved ✓" but no row change → hit F5.
+    //
+    // Fix: do the refresh INSIDE the success branch of startTransition,
+    // AFTER `await logActivity(fd)` resolves. Refresh outside transition
+    // (microtask) so React doesn't queue it as non-urgent.
     startTransition(async () => {
       const res = await logActivity(fd)
       if (res?.error) {
         setMsg('Error: ' + res.error)
         setIsError(true)
-      } else {
-        setMsg('Saved ✓ Refreshing…')
-        setIsError(false)
-        formRef.current?.reset()
-        setType('call')
-        onLogged?.()
+        return
       }
-    })
-    // Feedback 2026-05-28 PM (Sales team round 2): the previous fix put
-    // router.refresh() INSIDE startTransition, which queues it as a
-    // non-urgent update — so the row visually lagged the "Saved ✓"
-    // message and SPOCs assumed it hadn't worked and hit manual refresh.
-    //
-    // Trigger router.refresh() in a microtask AFTER the transition
-    // completes so the cached server tree gets re-fetched
-    // synchronously-ish from the SPOC's POV. We also keep the
-    // "Refreshing…" indicator up until the refresh resolves so the
-    // SPOC has visible feedback that something is happening.
-    Promise.resolve().then(() => {
-      try {
-        router.refresh()
-      } catch {
-        /* no-op — refresh is best-effort */
-      }
+      setMsg('Saved ✓ Refreshing…')
+      setIsError(false)
+      formRef.current?.reset()
+      setType('call')
+      onLogged?.()
+      // refresh AFTER the activity has been persisted server-side.
+      // Schedule on a microtask so it lands outside React's transition
+      // priority bucket — visible feedback latency stays low.
+      queueMicrotask(() => {
+        try {
+          router.refresh()
+        } catch {
+          /* no-op — refresh is best-effort */
+        }
+      })
       // Replace "Refreshing…" with the final "Saved ✓" after a short delay
-      setTimeout(() => {
+      window.setTimeout(() => {
         setMsg((prev) => (prev && prev.startsWith('Saved') ? 'Saved ✓' : prev))
       }, 600)
       // Clear success msg after 2.5s total
-      setTimeout(() => {
+      window.setTimeout(() => {
         setMsg((prev) => (prev && prev.startsWith('Saved') ? null : prev))
       }, 2500)
     })
@@ -93,7 +98,8 @@ export default function InlineActivityLogger({
             value={type}
             onChange={(e) => setType(e.target.value)}
             name="type"
-            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+            disabled={pending}
+            className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-50"
           >
             {ACTIVITY_TYPES.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -105,8 +111,9 @@ export default function InlineActivityLogger({
           <input
             type="text"
             name="outcome"
+            disabled={pending}
             placeholder="answered / no answer"
-            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-50"
           />
         </div>
       </div>
@@ -115,8 +122,9 @@ export default function InlineActivityLogger({
         <textarea
           name="note"
           rows={2}
+          disabled={pending}
           placeholder="What happened?"
-          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+          className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-50"
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -125,8 +133,9 @@ export default function InlineActivityLogger({
           <input
             type="text"
             name="next_action"
+            disabled={pending}
             placeholder="follow up / send quote"
-            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-50"
           />
         </div>
         <div>
@@ -134,7 +143,8 @@ export default function InlineActivityLogger({
           <input
             type="datetime-local"
             name="next_action_due"
-            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+            disabled={pending}
+            className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-50"
           />
         </div>
       </div>
@@ -142,8 +152,14 @@ export default function InlineActivityLogger({
         <button
           type="submit"
           disabled={pending}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          {pending && (
+            <span
+              className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"
+              aria-hidden="true"
+            />
+          )}
           {pending ? 'Saving…' : 'Log'}
         </button>
         {msg && (

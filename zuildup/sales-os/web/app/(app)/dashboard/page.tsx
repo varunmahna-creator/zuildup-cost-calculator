@@ -1,5 +1,5 @@
 import { requireAuth } from '@/lib/auth'
-import { getDashboardBuckets, getDashboardAnalytics, getTeamOverdue, getUsers, type Lead } from '@/lib/inboxApiServer'
+import { getDashboardBuckets, getDashboardAnalytics, getTeamOverdue, getUsers, getLeadsList, type Lead } from '@/lib/inboxApiServer'
 import Link from 'next/link'
 import BucketRow from '@/components/BucketRow'
 
@@ -30,13 +30,25 @@ export default async function DashboardPage() {
   const user = await requireAuth()
   const isAdminOrDirector = user.role === 'admin' || user.role === 'director'
 
-  // For SPOC: personal buckets only. For admin/director: team buckets + analytics + team-overdue.
-  const [bucketsResp, analyticsResp, teamOverdueResp, usersResp] = await Promise.all([
-    getDashboardBuckets(isAdminOrDirector ? undefined : user.id),
-    isAdminOrDirector ? getDashboardAnalytics() : Promise.resolve(null),
-    isAdminOrDirector ? getTeamOverdue() : Promise.resolve(null),
-    isAdminOrDirector ? getUsers() : Promise.resolve(null),
-  ])
+  // For SPOC: personal buckets + lightweight KPIs scoped to assigned-only.
+  // For admin/director: team buckets + global analytics + team-overdue.
+  // Sales feedback 2026-05-29: SPOCs landing on /dashboard previously saw
+  // only three bucket lists titled "My Day", which looked like the inbox.
+  // Vaishali reported "Dashboard shows inbox". Title is now "Dashboard"
+  // for all roles, and SPOCs get a 4-card KPI row at the top so the view
+  // is visually distinct from /inbox and /leads.
+  const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+  const [bucketsResp, analyticsResp, teamOverdueResp, usersResp, spocTotalResp, spocWonResp, spocNew7dResp] =
+    await Promise.all([
+      getDashboardBuckets(isAdminOrDirector ? undefined : user.id),
+      isAdminOrDirector ? getDashboardAnalytics() : Promise.resolve(null),
+      isAdminOrDirector ? getTeamOverdue() : Promise.resolve(null),
+      isAdminOrDirector ? getUsers() : Promise.resolve(null),
+      // SPOC-only KPI lookups (auto-scoped by API when role=spoc).
+      !isAdminOrDirector ? getLeadsList({ limit: 1 }) : Promise.resolve(null),
+      !isAdminOrDirector ? getLeadsList({ status_top: 'Qualified', sub_status: 'Won', limit: 1 }) : Promise.resolve(null),
+      !isAdminOrDirector ? getLeadsList({ created_from: sevenDaysAgoIso, limit: 1 }) : Promise.resolve(null),
+    ])
 
   const myOverdue = bucketsResp?.overdue || []
   const myToday = bucketsResp?.today || []
@@ -45,14 +57,62 @@ export default async function DashboardPage() {
   const userMap: Record<string, string> = {}
   ;(usersResp?.users || []).forEach((u) => { userMap[u.id] = u.name })
 
+  const spocKpis = !isAdminOrDirector
+    ? {
+        total: spocTotalResp?.total ?? 0,
+        new7d: spocNew7dResp?.total ?? 0,
+        won: spocWonResp?.total ?? 0,
+        overdue: myOverdue.length,
+        today: myToday.length,
+      }
+    : null
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        {isAdminOrDirector ? 'Dashboard' : 'My Day'}
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
       <p className="text-sm text-gray-500 mb-6">
         Hi {user.name?.split(' ')[0] || 'there'} — here&apos;s what needs attention.
       </p>
+
+      {/* SPOC KPI cards (added 2026-05-29 from sales feedback).
+          Renders only for spoc role; admin/director see global analytics
+          further down. */}
+      {spocKpis && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6" data-testid="spoc-kpis">
+          <KpiCard
+            label="My leads"
+            value={spocKpis.total}
+            sub="assigned to me"
+            href="/leads"
+            accent="text-slate-900"
+          />
+          <KpiCard
+            label="New (7d)"
+            value={spocKpis.new7d}
+            sub="last 7 days"
+            href="/leads"
+            accent="text-indigo-700"
+          />
+          <KpiCard
+            label="Overdue"
+            value={spocKpis.overdue}
+            sub="needs follow-up"
+            accent="text-red-700"
+          />
+          <KpiCard
+            label="Today"
+            value={spocKpis.today}
+            sub="due today"
+            accent="text-amber-700"
+          />
+          <KpiCard
+            label="Won"
+            value={spocKpis.won}
+            sub="closed deals"
+            accent="text-emerald-700"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Bucket
@@ -77,6 +137,7 @@ export default async function DashboardPage() {
           emptyText="Nothing in the next 7 days."
         />
       </div>
+
 
       {isAdminOrDirector && teamOverdue.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -280,5 +341,33 @@ function Kpi({ label, value, accent }: { label: string; value: number; accent?: 
       <p className="text-xs text-gray-500 uppercase">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${accent || 'text-gray-900'}`}>{value}</p>
     </div>
+  )
+}
+
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  href,
+  accent,
+}: {
+  label: string
+  value: number | string
+  sub?: string
+  href?: string
+  accent?: string
+}) {
+  const card = (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:border-gray-300 transition-colors h-full">
+      <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">{label}</div>
+      <div className={`text-2xl font-bold ${accent || 'text-gray-900'}`}>{value}</div>
+      {sub && <div className="text-[10px] text-gray-500 mt-0.5">{sub}</div>}
+    </div>
+  )
+  return href ? (
+    <Link href={href} className="block">{card}</Link>
+  ) : (
+    card
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { FilterBar } from '@/components/FilterBar'
 import { SortDropdown } from '@/components/SortDropdown'
@@ -22,6 +22,11 @@ export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
   // Backend listLeadsPaginated already does ILIKE %q% — we just wire the
   // URL ?q= param with a debounced controlled input.
   const [q, setQ] = useState(searchParams.get('q') || '')
+  // Sales feedback 2026-05-29 (Bug 6): show a tiny spinner inside the search
+  // box while the debounced search is firing, so SPOCs know typing
+  // registered. Uses startTransition around the router.refresh() so the
+  // pending bit reflects the actual list-refetch round-trip.
+  const [searchPending, startSearchTransition] = useTransition()
 
   useEffect(() => {
     // Keep local state in sync if URL changes third-partyly (back/forward).
@@ -39,8 +44,10 @@ export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
       // Reset to page 1 when search changes.
       next.delete('page')
       const qs = next.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-      router.refresh()
+      startSearchTransition(() => {
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+        router.refresh()
+      })
     }, 350)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,7 +66,13 @@ export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
             className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Search leads"
           />
-          {q && (
+          {searchPending && (
+            <span
+              className="absolute right-7 top-1/2 -translate-y-1/2 inline-block w-3 h-3 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+              aria-label="Searching"
+            />
+          )}
+          {q && !searchPending && (
             <button
               type="button"
               onClick={() => setQ('')}

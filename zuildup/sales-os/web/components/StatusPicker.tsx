@@ -361,9 +361,15 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
         </p>
         <button
           type="submit"
-          disabled={!canSave}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={!canSave || saving}
+          className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded disabled:opacity-40 disabled:cursor-not-allowed"
         >
+          {saving && (
+            <span
+              className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"
+              aria-hidden="true"
+            />
+          )}
           {saving ? 'Saving…' : 'Save status'}
         </button>
       </div>

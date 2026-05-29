@@ -3,6 +3,7 @@ import { getLeadsList, getUsers } from '@/lib/inboxApiServer'
 import Link from 'next/link'
 import LeadsListClient from './LeadsListClient'
 import LeadsHeaderClient from './LeadsHeaderClient'
+import PartnerFilterChips from './PartnerFilterChips'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,15 +25,6 @@ interface SearchParams {
   page?: string
   open?: string
 }
-
-// Top-filter partner options.
-// Feedback 2026-05-27 (Varun): collapse the campaign-level lead_source pills
-// into clean partner buckets — the sales team should only see Y2G vs ZuildUp,
-// never the underlying campaign IDs. API param is `partner` (values: y2g | zu).
-const PARTNER_FILTERS: { key: string; label: string }[] = [
-  { key: 'y2g', label: 'Y2G' },
-  { key: 'zu', label: 'ZuildUp' },
-]
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requireRole(['admin', 'director', 'spoc'])
@@ -84,34 +76,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Top partner-filter pills.
-          Feedback 2026-05-27 (Varun): replaced raw lead_source pills (which leaked
-          campaign IDs into the sales-team UI) with two clean buckets — Y2G + ZuildUp.
-          Sales team should never see campaign-level details here. */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link
-          href={{ query: { ...params, partner: undefined, page: '1' } }}
-          className={`px-3 py-1 rounded-full text-xs font-medium border ${
-            !params.partner
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-          }`}
-        >
-          All
-        </Link>
-        {PARTNER_FILTERS.map((p) => (
-          <Link
-            key={p.key}
-            href={{ query: { ...params, partner: p.key, page: '1' } }}
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${
-              params.partner === p.key
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            {p.label}
-          </Link>
-        ))}
-      </div>
+          Sales feedback 2026-05-29: migrated from <Link> to client-side
+          PartnerFilterChips which explicitly calls router.refresh() —
+          Next 15 Router Cache was serving stale RSC payload on Link
+          navigation even with the page set to force-dynamic. */}
+      <PartnerFilterChips />
 
       {/* Lane E FilterBar + SortDropdown header (replaces Lane D's inline form).
           leadSources intentionally empty: campaign-level Source dropdown was hiding
