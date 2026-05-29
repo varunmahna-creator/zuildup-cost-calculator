@@ -92,6 +92,18 @@ export default function LeadsListClient({
 
   const [openId, setOpenId] = useState<string | null>(initialOpen ?? null)
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
+  // CRITICAL (2026-05-29 round-3): server re-renders pass a NEW initialLeads
+  // array when search/filter/pagination changes, but useState only seeds on
+  // first mount. Without this sync, the page header (totalCount, a direct
+  // prop) updates correctly while the rendered list stays frozen on the
+  // initial mount data. This was THE root cause of "search shows 2 leads
+  // but list shows all", "filters do nothing visible", and "status save
+  // requires manual refresh" — all three symptoms come from the same
+  // props-snapshot-into-local-state bug. Sync local state whenever the
+  // server hands us a new array.
+  useEffect(() => {
+    setLeads(initialLeads)
+  }, [initialLeads])
   const [modalOpen, setModalOpen] = useState(false)
   const [newLeadFlash, setNewLeadFlash] = useState<string | null>(null)
 
