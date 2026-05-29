@@ -10,7 +10,7 @@ export default async function HomePage() {
 
   // Route based on role
   if (user.role === 'spoc') {
-    redirect('/inbox')
+    redirect('/dashboard')
   } else {
     // admin and director go to leads
     redirect('/leads')

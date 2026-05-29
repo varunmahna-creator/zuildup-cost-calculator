@@ -62,13 +62,17 @@ export async function updateSession(request: NextRequest) {
 
     if (userData?.role !== 'admin') {
       const url = request.nextUrl.clone()
-      url.pathname = '/inbox'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
   }
 
   // Director/Admin-only routes
-  if (path.startsWith('/dashboard') || path.startsWith('/unassigned')) {
+  // Note (2026-05-29): /dashboard used to be admin/director-only, which
+  // bounced SPOCs (like Vaishali) to /inbox every time they clicked the
+  // "Dashboard" nav link. /dashboard now renders a SPOC-scoped view with
+  // KPI cards + personal buckets, so all roles can land on it.
+  if (path.startsWith('/unassigned')) {
     const { data: userData } = await supabase
       .from('users')
       .select('role')
@@ -77,7 +81,7 @@ export async function updateSession(request: NextRequest) {
 
     if (userData?.role !== 'admin' && userData?.role !== 'director') {
       const url = request.nextUrl.clone()
-      url.pathname = '/inbox'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
   }
