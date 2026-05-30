@@ -86,8 +86,15 @@ button{font:inherit;cursor:pointer;border:0;background:none}
 .header-cta-icon{width:16px;height:16px}
 
 /* HERO */
-.hero{padding:48px 0 40px;background:linear-gradient(135deg,#0A1F44 0%,#1a2847 100%);color:#fff;position:relative;overflow:hidden}
-.hero::before{content:"";position:absolute;top:-50%;right:-20%;width:60%;height:200%;
+.hero{
+    padding:56px 0 48px;
+    background:
+      linear-gradient(135deg, rgba(10,31,68,.62) 0%, rgba(26,40,71,.70) 55%, rgba(10,31,68,.82) 100%),
+      url('assets/photos/photo_05.webp') center 45%/cover no-repeat,
+      linear-gradient(135deg,#0A1F44 0%,#1a2847 100%);
+    color:#fff;position:relative;overflow:hidden;
+  }
+  .hero::before{content:"";position:absolute;top:-50%;right:-20%;width:60%;height:200%;
   background:radial-gradient(circle,rgba(201,162,77,.12) 0%,transparent 70%);pointer-events:none}
 .hero-inner{position:relative;z-index:1}
 .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;
@@ -98,27 +105,36 @@ button{font:inherit;cursor:pointer;border:0;background:none}
   box-shadow:0 0 12px var(--gold)}
 h1{font-size:clamp(28px,6vw,48px);font-weight:800;line-height:1.1;
   margin-bottom:16px;letter-spacing:-.02em}
-h1 .gold{color:var(--gold);display:block}
+h1 .gold{color:#E8C766;display:block;text-shadow:0 2px 12px rgba(0,0,0,.35)}
 .lede{font-size:clamp(16px,2.5vw,20px);color:rgba(255,255,255,.85);
   margin-bottom:28px;max-width:600px}
 
 /* TRUST STATS BAR (in hero) */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
-  padding:24px 0;margin:28px 0;
-  border-top:1px solid rgba(255,255,255,.12);
-  border-bottom:1px solid rgba(255,255,255,.12)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+    padding:28px 0;margin:32px 0;
+    border-top:1px solid rgba(201,162,77,.22);
+    border-bottom:1px solid rgba(201,162,77,.22)}
+  @media (max-width:760px){
+    .stats{grid-template-columns:repeat(2,1fr); gap:22px 12px}
+    .stat-l{font-size:10.5px;letter-spacing:.4px}
+  }
+  @media (max-width:380px){
+    .stats{gap:18px 8px}
+    .stat-n{font-size:24px !important}
+  }
 .stat{text-align:center}
-.stat-n{font-size:clamp(20px,4vw,32px);font-weight:800;color:var(--gold);display:block;line-height:1}
+.stat-n{font-size:clamp(22px,4.2vw,34px);font-weight:800;color:var(--gold);display:block;line-height:1;letter-spacing:-.01em}
 .stat-l{font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;
   letter-spacing:.5px;margin-top:6px;display:block}
 
 /* TRUST STATS BAR (standalone, below hero) */
-.trust-bar{background:#fff;padding:20px 0;border-bottom:1px solid rgba(10,31,68,.06)}
-.trust-bar-inner{display:flex;justify-content:center;align-items:center;
+.trust-bar{background:#fff;padding:28px 0;border-bottom:1px solid rgba(10,31,68,.08);
+    box-shadow:0 2px 12px rgba(10,31,68,.04)}
+  .trust-bar-inner{display:flex;justify-content:center;align-items:center;
   flex-wrap:wrap;gap:12px 28px;text-align:center;font-size:14px;
   font-weight:700;color:var(--navy)}
 .trust-bar-item{display:inline-flex;align-items:center;gap:8px}
-.trust-bar-item strong{color:#8B6F20;font-size:16px}
+.trust-bar-item strong{color:#8B6F20;font-size:18px;font-weight:800;letter-spacing:-.01em}
 .trust-bar-sep{color:#d1d5db;font-weight:400}
 @media (max-width:480px){.trust-bar-sep{display:none}}
 
@@ -350,7 +366,24 @@ h1, h2, h3 { overflow-wrap: anywhere; word-break: normal; hyphens: auto; }
 .tiers { min-width: 0; }
 .tier { min-width: 0; }
 .tier-feature { min-width: 0; }
-</style>
+  /* Tier full-spec disclosure (Iraaj UI lift 2026-05-29) */
+  .tier-spec-toggle{margin:14px 0 4px}
+  .tier-spec-toggle summary{
+    cursor:pointer;font-size:12px;font-weight:700;color:#8B6F20;
+    letter-spacing:.5px;text-transform:uppercase;padding:10px 0;
+    list-style:none;display:flex;align-items:center;gap:6px;user-select:none;
+    border-top:1px dashed rgba(201,162,77,.3);
+  }
+  .tier-spec-toggle summary::-webkit-details-marker{display:none}
+  .tier-spec-toggle .ts-arrow{display:inline-block;transition:transform .2s ease;font-size:14px}
+  .tier-spec-toggle[open] .ts-arrow{transform:rotate(90deg)}
+  .tier-spec-toggle .tier-features{margin-top:0;border-top:0}
+  .tier-bestfor{
+    font-size:12px;font-weight:600;color:var(--muted);
+    margin:2px 0 12px 0;text-transform:none;letter-spacing:0;
+  }
+  .tier-bestfor strong{color:var(--navy);font-weight:700}
+  </style>
 </head>
 
 <body>
@@ -416,96 +449,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </div>
 
-<!-- PACKAGES (3-tier pricing) -->
-<section class="packages" id="packages">
-  <div class="wrap">
-    <span class="eyebrow">Transparent Pricing</span>
-    <h2>Three packages. Fully transparent. Pick the one that fits.</h2>
-    <p class="section-lede">Same fixed-price guarantee, same on-time penalty, same 15-year warranty across all three. The difference is finish, fittings and material grade.</p>
-    <div class="tiers">
-    <article class="tier" data-tier="Premium">
-      
-      <div class="tier-name">Premium</div>
-      <div class="tier-price">₹1,950<span class="unit">per sq.ft</span></div>
-      <ul class="tier-features">
-      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
-      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
-      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ambuja / Dalmia</span></li>
-      <li class="tier-feature dash"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Not included</span></li>
-      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Vitrified Anti-Skid up to ₹50/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹70/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Standard Flush / WPC</span></li>
-      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (Tostem or equiv.)</span></li>
-      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Tractor Emulsion by Asian Paints</span></li>
-      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹1,00,000 (Laminate)</span></li>
-      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED Philips, Fans Orient/Bajaj, Switches Anchor</span></li>
-      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Essential (Parryware / Hindware)</span></li>
-      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Triple-Layer Overhead</span></li>
-      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">Door Bell</span></li>
-      </ul>
-      <div class="tier-cta">
-        <a href="#lead-form" class="btn btn-packages" data-cta="tier_quote_premium" data-tier-select="Premium">Get Quote for Premium</a>
-      </div>
-    </article>
-    <article class="tier featured" data-tier="Platinum">
-      <span class="tier-badge">Recommended</span>
-      <div class="tier-name">Platinum</div>
-      <div class="tier-price">₹2,850<span class="unit">per sq.ft</span></div>
-      <ul class="tier-features">
-      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
-      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
-      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ultratech / ACC</span></li>
-      <li class="tier-feature"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Rathi 500 FE</span></li>
-      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Italian Stone up to ₹250/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹100/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Premium Flush & Tata Pravesh Galvanized</span></li>
-      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (Fenesta or equiv.)</span></li>
-      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Apcolite Premium Emulsion by Asian Paints</span></li>
-      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹2,50,000 (Laminate / fluted glass / acrylic)</span></li>
-      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED Philips, Fans Havells/Crompton, Switches Havells</span></li>
-      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Premium (Jaquar / Kohler)</span></li>
-      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Triple-Layer (Astral / Sintex)</span></li>
-      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">CCTV & Video Door Phone (CP Plus)</span></li>
-      </ul>
-      <div class="tier-cta">
-        <a href="#lead-form" class="btn btn-form" data-cta="tier_quote_platinum" data-tier-select="Platinum">Get Quote for Platinum</a>
-      </div>
-    </article>
-    <article class="tier" data-tier="Royal">
-      
-      <div class="tier-name">Royal</div>
-      <div class="tier-price">₹4,100<span class="unit">per sq.ft</span></div>
-      <ul class="tier-features">
-      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
-      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
-      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ultratech / ACC</span></li>
-      <li class="tier-feature"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Tata 550 FE</span></li>
-      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Italian Stone up to ₹350/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹125/sqft</span></li>
-      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Solid Teak Wood & Tata Pravesh Galvanized</span></li>
-      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (premium)</span></li>
-      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Royale Luxury Emulsion by Asian Paints</span></li>
-      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹5,00,000 (Laminate / fluted glass / acrylic / PU)</span></li>
-      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED + track lights Philips, BLDC fans Havells/Atomberg, Premium switches</span></li>
-      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Premium (Grohe / Villeroy & Boch)</span></li>
-      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Stainless Steel Insulated 7-Layer</span></li>
-      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">CCTV & Video Door Phone (Panasonic)</span></li>
-      </ul>
-      <div class="tier-cta">
-        <a href="#lead-form" class="btn btn-packages" data-cta="tier_quote_royal" data-tier-select="Royal">Get Quote for Royal</a>
-      </div>
-    </article>
-    </div>
-    <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:24px">All packages include anti-termite treatment, waterproofing, and optional solar panels. Final quote depends on plot size, design and locality.</p>
-  </div>
-</section>
-
 <!-- PHOTO GALLERY -->
 <section class="gallery">
   <div class="wrap">
     <span class="eyebrow">Our Work</span>
-    <h2>Homes we've built across Delhi NCR.</h2>
-    <p class="section-lede">Real projects, real homeowners, real handovers. A glimpse of what's possible when fixed-price meets fixed-timeline.</p>
+    <h2>124 homes. Zero broken promises.</h2>
+    <p class="section-lede">Real projects, real homeowners, real handovers across Delhi NCR. Built fixed-price. Delivered on time. Backed by a ₹5L/month penalty if we slip.</p>
     <div class="gallery-grid" id="gallery">
       <div class="gallery-item">
         <div class="gallery-photo">
@@ -568,6 +517,108 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="gallery-cap"><strong>Dining Area</strong><span>Marble-top table · backlit display cabinetry</span></div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- PACKAGES (3-tier pricing) -->
+<section class="packages" id="packages">
+  <div class="wrap">
+    <span class="eyebrow">Transparent Pricing</span>
+    <h2>Three packages. Fully transparent. Pick the one that fits.</h2>
+    <p class="section-lede">Same fixed-price guarantee, same on-time penalty, same 15-year warranty across all three. The difference is finish, fittings and material grade.</p>
+    <div class="tiers">
+    <article class="tier" data-tier="Premium">
+      
+      <div class="tier-name">Premium</div>
+      <p class="tier-bestfor">Best for: <strong>core build, no compromise on essentials</strong></p>
+      <div class="tier-price">₹1,950<span class="unit">per sq.ft</span></div>
+      <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
+      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
+      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ambuja / Dalmia</span></li>
+      <li class="tier-feature dash"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Not included</span></li>
+      </ul>
+      <details class="tier-spec-toggle">
+        <summary><span class="ts-arrow">▸</span> See full specification (10 more items)</summary>
+        <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Vitrified Anti-Skid up to ₹50/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹70/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Standard Flush / WPC</span></li>
+      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (Tostem or equiv.)</span></li>
+      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Tractor Emulsion by Asian Paints</span></li>
+      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹1,00,000 (Laminate)</span></li>
+      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED Philips, Fans Orient/Bajaj, Switches Anchor</span></li>
+      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Essential (Parryware / Hindware)</span></li>
+      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Triple-Layer Overhead</span></li>
+      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">Door Bell</span></li>
+      </ul>
+      </details>
+      <div class="tier-cta">
+        <a href="#lead-form" class="btn btn-packages" data-cta="tier_quote_premium" data-tier-select="Premium">Get Quote for Premium</a>
+      </div>
+    </article>
+    <article class="tier featured" data-tier="Platinum">
+      <span class="tier-badge">Recommended</span>
+      <div class="tier-name">Platinum</div>
+      <p class="tier-bestfor">Best for: <strong>premium materials, branded fittings, future-proof finish</strong></p>
+      <div class="tier-price">₹2,850<span class="unit">per sq.ft</span></div>
+      <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
+      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
+      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ultratech / ACC</span></li>
+      <li class="tier-feature"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Rathi 500 FE</span></li>
+      </ul>
+      <details class="tier-spec-toggle">
+        <summary><span class="ts-arrow">▸</span> See full specification (10 more items)</summary>
+        <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Italian Stone up to ₹250/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹100/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Premium Flush & Tata Pravesh Galvanized</span></li>
+      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (Fenesta or equiv.)</span></li>
+      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Apcolite Premium Emulsion by Asian Paints</span></li>
+      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹2,50,000 (Laminate / fluted glass / acrylic)</span></li>
+      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED Philips, Fans Havells/Crompton, Switches Havells</span></li>
+      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Premium (Jaquar / Kohler)</span></li>
+      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Triple-Layer (Astral / Sintex)</span></li>
+      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">CCTV & Video Door Phone (CP Plus)</span></li>
+      </ul>
+      </details>
+      <div class="tier-cta">
+        <a href="#lead-form" class="btn btn-form" data-cta="tier_quote_platinum" data-tier-select="Platinum">Get Quote for Platinum</a>
+      </div>
+    </article>
+    <article class="tier" data-tier="Royal">
+      
+      <div class="tier-name">Royal</div>
+      <p class="tier-bestfor">Best for: <strong>luxury custom builds, imported finishes, full automation</strong></p>
+      <div class="tier-price">₹4,100<span class="unit">per sq.ft</span></div>
+      <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Design & Consultation</span><span class="feat-val">Free</span></li>
+      <li class="tier-feature"><span class="feat-label">Drawings</span><span class="feat-val">2D Floor Plan & 3D Elevation</span></li>
+      <li class="tier-feature"><span class="feat-label">Cement</span><span class="feat-val">Ultratech / ACC</span></li>
+      <li class="tier-feature"><span class="feat-label">Steel (Earthquake Norms)</span><span class="feat-val">Tata 550 FE</span></li>
+      </ul>
+      <details class="tier-spec-toggle">
+        <summary><span class="ts-arrow">▸</span> See full specification (10 more items)</summary>
+        <ul class="tier-features">
+      <li class="tier-feature"><span class="feat-label">Flooring</span><span class="feat-val">Italian Stone up to ₹350/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Parking & Staircase</span><span class="feat-val">Granite up to ₹125/sqft</span></li>
+      <li class="tier-feature"><span class="feat-label">Doors</span><span class="feat-val">Solid Teak Wood & Tata Pravesh Galvanized</span></li>
+      <li class="tier-feature"><span class="feat-label">Windows</span><span class="feat-val">UPVC / Aluminium 3-Track Sliding (premium)</span></li>
+      <li class="tier-feature"><span class="feat-label">Paint</span><span class="feat-val">Royale Luxury Emulsion by Asian Paints</span></li>
+      <li class="tier-feature"><span class="feat-label">Kitchen & Wardrobe</span><span class="feat-val">Modular kitchen up to ₹5,00,000 (Laminate / fluted glass / acrylic / PU)</span></li>
+      <li class="tier-feature"><span class="feat-label">Electricals</span><span class="feat-val">LED + track lights Philips, BLDC fans Havells/Atomberg, Premium switches</span></li>
+      <li class="tier-feature"><span class="feat-label">Fittings</span><span class="feat-val">Premium (Grohe / Villeroy & Boch)</span></li>
+      <li class="tier-feature"><span class="feat-label">Water Tank</span><span class="feat-val">Stainless Steel Insulated 7-Layer</span></li>
+      <li class="tier-feature"><span class="feat-label">Security</span><span class="feat-val">CCTV & Video Door Phone (Panasonic)</span></li>
+      </ul>
+      </details>
+      <div class="tier-cta">
+        <a href="#lead-form" class="btn btn-packages" data-cta="tier_quote_royal" data-tier-select="Royal">Get Quote for Royal</a>
+      </div>
+    </article>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--muted);margin-top:24px">All packages include anti-termite treatment, waterproofing, and optional solar panels. Final quote depends on plot size, design and locality.</p>
   </div>
 </section>
 
