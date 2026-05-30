@@ -15,7 +15,7 @@ INSERT INTO assignment_counters(source, next_index) VALUES ('referral', 0)
 ON CONFLICT (source) DO NOTHING;
 
 -- Atomic round-robin function
--- NOTE: pool = users with role 'spoc' (sales role in this DB)
+-- NOTE: pool = users with role IN ('spoc','director') — Varun's call 2026-05-30
 CREATE OR REPLACE FUNCTION next_sales_assignee(p_source text)
 RETURNS uuid LANGUAGE plpgsql AS $$
 DECLARE
@@ -26,7 +26,7 @@ DECLARE
   picked uuid;
 BEGIN
   SELECT array_agg(u.id ORDER BY u.id) INTO pool
-  FROM users u WHERE u.role = 'spoc';
+  FROM users u WHERE u.role IN ('spoc','director');
 
   pool_len := COALESCE(array_length(pool, 1), 0);
   IF pool_len = 0 THEN
