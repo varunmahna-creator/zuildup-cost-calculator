@@ -51,6 +51,9 @@ export default async function AppLayout({
                     <Link href="/admin/team-actions" className="text-gray-700 hover:text-gray-900">
                       Team Actions
                     </Link>
+                    <Link href="/admin/leads/import" className="text-gray-700 hover:text-gray-900">
+                      Import leads
+                    </Link>
                   </>
                 )}
                 {user.role === 'spoc' && (
