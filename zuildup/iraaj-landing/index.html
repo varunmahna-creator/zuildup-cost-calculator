@@ -89,8 +89,8 @@ button{font:inherit;cursor:pointer;border:0;background:none}
 .hero{
     padding:56px 0 48px;
     background:
-      linear-gradient(135deg, rgba(10,31,68,.62) 0%, rgba(26,40,71,.70) 55%, rgba(10,31,68,.82) 100%),
-      url('assets/photos/photo_05.webp') center 45%/cover no-repeat,
+      linear-gradient(135deg, rgba(10,31,68,.78) 0%, rgba(26,40,71,.84) 55%, rgba(10,31,68,.92) 100%),
+      url('assets/photos/photo_06.webp') center center/cover no-repeat,
       linear-gradient(135deg,#0A1F44 0%,#1a2847 100%);
     color:#fff;position:relative;overflow:hidden;
   }
@@ -124,18 +124,25 @@ h1 .gold{color:#E8C766;display:block;text-shadow:0 2px 12px rgba(0,0,0,.35)}
   }
 .stat{text-align:center}
 .stat-n{font-size:clamp(22px,4.2vw,34px);font-weight:800;color:var(--gold);display:block;line-height:1;letter-spacing:-.01em}
-.stat-l{font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;
-  letter-spacing:.5px;margin-top:6px;display:block}
+.stat-l{font-size:11px;color:rgba(255,255,255,.78);text-transform:uppercase;
+    letter-spacing:.4px;margin-top:6px;display:block;line-height:1.25;
+    overflow-wrap:break-word;hyphens:auto;padding:0 2px}
 
 /* TRUST STATS BAR (standalone, below hero) */
 .trust-bar{background:#fff;padding:28px 0;border-bottom:1px solid rgba(10,31,68,.08);
     box-shadow:0 2px 12px rgba(10,31,68,.04)}
-  .trust-bar-inner{display:flex;justify-content:center;align-items:center;
+  .trust-bar-inner{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
   flex-wrap:wrap;gap:12px 28px;text-align:center;font-size:14px;
   font-weight:700;color:var(--navy)}
 .trust-bar-item{display:inline-flex;align-items:center;gap:8px}
 .trust-bar-item strong{color:#8B6F20;font-size:18px;font-weight:800;letter-spacing:-.01em}
 .trust-bar-sep{color:#d1d5db;font-weight:400}
+  @media (max-width:640px){
+    .trust-bar{padding:18px 0}
+    .trust-bar-inner{gap:6px 12px;font-size:12.5px;line-height:1.3;text-align:center}
+    .trust-bar-item strong{font-size:14px}
+    .trust-bar-sep{display:none}
+  }
 @media (max-width:480px){.trust-bar-sep{display:none}}
 
 /* CTAs */
@@ -160,7 +167,7 @@ section{padding:56px 0}
 .process-bg .eyebrow{color:#F2D88E}
 h2{font-size:clamp(24px,4vw,36px);font-weight:800;line-height:1.2;
   color:var(--navy);margin-bottom:20px;letter-spacing:-.01em;max-width:700px}
-.section-lede{font-size:17px;color:var(--muted);max-width:700px;margin-bottom:40px}
+.section-lede{font-size:17px;color:var(--muted);max-width:700px;margin-bottom:40px;overflow-wrap:break-word;max-width:100%;padding-left:max(env(safe-area-inset-left),0px);padding-right:max(env(safe-area-inset-right),0px)}
 
 /* HERO PRICING LINE */
 .hero-pricing{font-size:clamp(15px,2.2vw,18px);color:#E4C87A;margin-bottom:20px;
@@ -383,6 +390,32 @@ h1, h2, h3 { overflow-wrap: anywhere; word-break: normal; hyphens: auto; }
     margin:2px 0 12px 0;text-transform:none;letter-spacing:0;
   }
   .tier-bestfor strong{color:var(--navy);font-weight:700}
+  
+  /* Iraaj viewport safety net (no horizontal scroll, no truncation) */
+  html,body{overflow-x:hidden;max-width:100vw}
+  *{min-width:0}
+  img,picture,video{max-width:100%;height:auto}
+  h1,h2,h3,p,li,span{overflow-wrap:break-word;word-wrap:break-word}
+  
+  .gallery-swipe-hint{
+    display:none;
+    font-size:12px;font-weight:700;color:var(--gold);
+    text-transform:uppercase;letter-spacing:.6px;
+    text-align:center;margin-top:14px;
+    animation:swipeNudge 1.8s ease-in-out infinite;
+  }
+  @media (max-width:960px){
+    .gallery-swipe-hint{display:block}
+  }
+  @keyframes swipeNudge{
+    0%,100%{transform:translateX(0);opacity:.85}
+    50%{transform:translateX(6px);opacity:1}
+  }
+
+  @media (max-width:480px){
+    .header-cta{padding:7px 12px;font-size:13px}
+    .logo-img{height:28px !important}
+  }
   </style>
 </head>
 
@@ -413,9 +446,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="hero-pricing"><strong>Starting at ₹1,950/sqft.</strong> 3 packages. Fully transparent pricing.</p>
 
     <div class="stats">
-      <div class="stat"><span class="stat-n">23 yrs</span><span class="stat-l">Building Delhi NCR</span></div>
-      <div class="stat"><span class="stat-n">124+</span><span class="stat-l">Homes delivered</span></div>
-      <div class="stat"><span class="stat-n">100%</span><span class="stat-l">On-time delivery</span></div>
+      <div class="stat"><span class="stat-n">23 yrs</span><span class="stat-l">In Delhi NCR</span></div>
+      <div class="stat"><span class="stat-n">124+</span><span class="stat-l">Homes built</span></div>
+      <div class="stat"><span class="stat-n">100%</span><span class="stat-l">On-time</span></div>
       <div class="stat"><span class="stat-n">15 yrs</span><span class="stat-l">Warranty</span></div>
     </div>
     <p style="font-size:11px;color:rgba(255,255,255,.55);margin-top:-8px;margin-bottom:20px">*As per contract terms. Delay penalty is deducted from final invoice or paid directly, at the customer's option.</p>
@@ -471,7 +504,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <picture>
             <source media="(max-width:640px)" srcset="assets/photos/photo_06_640.webp" type="image/webp">
             <source srcset="assets/photos/photo_06.webp" type="image/webp">
-            <img src="assets/photos/photo_06.jpg" alt="ZuildUp project — modern entrance with slatted metal gates and wood portal" loading="lazy" width="1024" height="683" decoding="async">
+            <img src="assets/photos/photo_06.jpg" alt="ZuildUp project — modern entrance with slatted metal gates and wood portal" loading="eager" fetchpriority="high" width="1024" height="683" decoding="async">
           </picture>
         </div>
         <div class="gallery-cap"><strong>Modern Entrance Portal</strong><span>Slatted metal gates + wood detailing</span></div>
@@ -481,7 +514,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <picture>
             <source media="(max-width:640px)" srcset="assets/photos/photo_02_640.webp" type="image/webp">
             <source srcset="assets/photos/photo_02.webp" type="image/webp">
-            <img src="assets/photos/photo_02.jpg" alt="ZuildUp interior — living room with curved sectional, forest mural and cove ceiling" loading="lazy" width="1024" height="683" decoding="async">
+            <img src="assets/photos/photo_02.jpg" alt="ZuildUp interior — living room with curved sectional, forest mural and cove ceiling" loading="eager" fetchpriority="high" width="1024" height="683" decoding="async">
           </picture>
         </div>
         <div class="gallery-cap"><strong>Statement Living Room</strong><span>Curved sectional · forest mural · cove ceiling</span></div>
@@ -491,7 +524,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <picture>
             <source media="(max-width:640px)" srcset="assets/photos/photo_04_640.webp" type="image/webp">
             <source srcset="assets/photos/photo_04.webp" type="image/webp">
-            <img src="assets/photos/photo_04.jpg" alt="ZuildUp interior — living room with corner windows, marble floors and minimalist styling" loading="lazy" width="1024" height="683" decoding="async">
+            <img src="assets/photos/photo_04.jpg" alt="ZuildUp interior — living room with corner windows, marble floors and minimalist styling" loading="eager" fetchpriority="high" width="1024" height="683" decoding="async">
           </picture>
         </div>
         <div class="gallery-cap"><strong>Light-Filled Living Room</strong><span>Corner windows · marble floors · minimalist styling</span></div>
@@ -518,7 +551,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
     </div>
   </div>
-</section>
+
+    <p class="gallery-swipe-hint" aria-hidden="true">Swipe to see more →</p>
+  </section>
 
 <!-- PACKAGES (3-tier pricing) -->
 <section class="packages" id="packages">
