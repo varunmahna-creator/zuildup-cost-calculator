@@ -746,7 +746,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <label class="radio-opt"><input type="radio" name="plot_status" value="exploring" required> I'm just exploring options</label>
         </fieldset>
 
-        <div class="field">
+        <details class="optional-disclosure" style="margin:8px 0 4px">
+          <summary style="cursor:pointer;color:var(--gold,#C9A24D);font-weight:700;font-size:14px;padding:10px 0;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
+            <span class="disclosure-arrow" aria-hidden="true" style="display:inline-block;transition:transform .2s ease">▸</span>
+            Add more details to help us quote faster (optional)
+          </summary>
+          <style>.optional-disclosure[open] .disclosure-arrow{transform:rotate(90deg)}</style>
+          <div class="field">
           <label for="f-plot-size">Plot size <span style="font-weight:400;color:var(--muted)">(optional, helps us quote faster)</span></label>
           <select id="f-plot-size" name="plot_size">
             <option value="">Select plot size</option>
@@ -775,6 +781,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <option value="help_me_decide">Help me decide</option>
           </select>
         </div>
+        </details>
 
         <div class="submit-row">
           <button type="submit" class="btn btn-form btn-full" id="submitBtn">Get a Personalised Quote</button>
