@@ -8,7 +8,17 @@
  *   - This rewrite proxies the parsed rows to the inbox-api
  *     `/admin/leads/bulk-import` endpoint, which writes to Cloud SQL
  *     `zuildup_sales_os.leads` with the same defaults (tier_hint=A,
- *     lead_source=referral, status='New', round-robin assignment).
+ *     lead_source='referral_lead_form', status='Assigned' when round-robin
+ *     picks an assignee else 'New', round-robin assignment).
+ *
+ * 2026-06-01 bug-fixes (post-81-lead recovery audit):
+ *   - lead_source changed from 'referral' → 'referral_lead_form' to match
+ *     the `<channel>_lead_form` convention used by Meta/Google webhooks
+ *     and the UI source filter pills.
+ *   - inbox-api bulkImportLeads now sets status='Assigned' when a row gets
+ *     auto-assigned (previously hardcoded 'New' even with an assignee).
+ *   - listLeadsPaginated now has stable l.id DESC tiebreaker so rows
+ *     stop thrashing when many share the same created_at (bulk import).
  *
  * Sales OS rule (permanent, per Varun 2026-05-31):
  *   - Cloud SQL `zuildup-sales-os-pg15` is the only DB for Sales OS lead
@@ -250,7 +260,9 @@ export async function POST(req: NextRequest) {
         email: r.email,
         location: r.location,
       })),
-      lead_source: 'referral',
+      // Use the canonical `<channel>_lead_form` naming so the UI source
+      // filter pills group these correctly. Bug-fix 2026-06-01.
+      lead_source: 'referral_lead_form',
       tier_hint: 'A',
     }),
     cache: 'no-store',
