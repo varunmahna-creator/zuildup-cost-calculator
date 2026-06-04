@@ -99,6 +99,8 @@ export type Lead = {
   restart_date?: string | null
   attempt_reason?: string | null
   callback_at?: string | null
+  // Bucket D (2026-06-04) - pipeline timeline
+  estimated_closure_bucket?: string | null
   legacy_status?: string | null
   tier_override_by?: string | null
   tier_override_at?: string | null
@@ -172,4 +174,38 @@ export async function getDashboardAnalytics() {
 
 export async function getTeamOverdue() {
   return inboxApiGet<{ ok: true; rows: any[] }>('/admin/team-overdue')
+}
+
+
+// Bucket-D (2026-06-04) — Pipeline tab.
+// Returns Qualified-not-closed leads grouped by closure bucket. SPOC scope
+// enforced on the server (inbox-api reads users.lead_scope).
+export type PipelineBucketKey = '<1m' | '1-3m' | '>3m' | 'uncategorized'
+
+export type PipelineLeadCard = {
+  id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  assigned_to: string | null
+  assigned_to_name: string | null
+  status_top: string | null
+  sub_status: string | null
+  estimated_closure_bucket: '<1m' | '1-3m' | '>3m' | null
+  last_activity_at: string | null
+  next_action_type: string | null
+  next_action_text: string | null
+  next_action_due: string | null
+  created_at: string
+}
+
+export type PipelineResponse = {
+  ok: true
+  buckets: Record<PipelineBucketKey, PipelineLeadCard[]>
+  counts: Record<PipelineBucketKey, number>
+  total: number
+}
+
+export async function getPipeline() {
+  return inboxApiGet<PipelineResponse>('/pipeline')
 }

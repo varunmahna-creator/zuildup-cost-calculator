@@ -43,6 +43,20 @@ export interface ChangeStatusPayload {
   attempt_reason?: string
   callback_at?: string // ISO timestamp
   callback_comment?: string // Bucket B (2026-06-04) — optional context shown in Recent Activity
+  // Bucket D (2026-06-04) — required by backend when marking Qualified
+  // (sub_status not in 'Won'/'Lost'). Values: '<1m' | '1-3m' | '>3m'.
+  estimated_closure_bucket?: ClosureBucket
+}
+
+// Bucket D (2026-06-04) — pipeline closure timeline buckets.
+// Single source of truth for the StatusPicker + Pipeline page dropdowns.
+export const CLOSURE_BUCKETS = ['<1m', '1-3m', '>3m'] as const
+export type ClosureBucket = typeof CLOSURE_BUCKETS[number]
+
+export const CLOSURE_BUCKET_LABEL: Record<ClosureBucket, string> = {
+  '<1m': '< 1 month',
+  '1-3m': '1-3 months',
+  '>3m': '> 3 months',
 }
 
 export interface OverrideTierPayload {
@@ -336,6 +350,70 @@ export async function bulkAssignLeads(
     const r = await inboxFetch(`${INBOX_API}/leads/bulk-assign`, {
       method: 'POST',
       body: JSON.stringify({ lead_ids: leadIds, assigned_to: assignedTo }),
+    })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) return { ok: false, error: json?.error || `HTTP ${r.status}`, status: r.status }
+    return { ok: true, ...json }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Bucket-D 2026-06-04 — Pipeline tab + closure-bucket update.
+// Sales-team feedback item 10.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type PipelineBucketKey = '<1m' | '1-3m' | '>3m' | 'uncategorized'
+
+export interface PipelineLead {
+  id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  assigned_to: string | null
+  assigned_to_name: string | null
+  status_top: string | null
+  sub_status: string | null
+  estimated_closure_bucket: ClosureBucket | null
+  last_activity_at: string | null
+  next_action_type: string | null
+  next_action_text: string | null
+  next_action_due: string | null
+  created_at: string
+}
+
+export interface PipelineResponse {
+  ok: true
+  buckets: Record<PipelineBucketKey, PipelineLead[]>
+  counts: Record<PipelineBucketKey, number>
+  total: number
+}
+
+/** GET /pipeline — SPOC scoped server-side. */
+export async function fetchPipeline(): Promise<PipelineResponse | null> {
+  if (!INBOX_API) return null
+  try {
+    const r = await inboxFetch(`${INBOX_API}/pipeline`)
+    if (!r.ok) return null
+    const json = await r.json()
+    return json as PipelineResponse
+  } catch (e) {
+    console.warn('[leadApi] fetchPipeline error:', e)
+    return null
+  }
+}
+
+/** PATCH /leads/:id/estimated-closure */
+export async function updateClosureBucket(
+  leadId: string,
+  bucket: ClosureBucket,
+): Promise<ApiResult> {
+  if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
+  try {
+    const r = await inboxFetch(`${INBOX_API}/leads/${encodeURIComponent(leadId)}/estimated-closure`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estimated_closure_bucket: bucket }),
     })
     const json = await r.json().catch(() => ({}))
     if (!r.ok) return { ok: false, error: json?.error || `HTTP ${r.status}`, status: r.status }
