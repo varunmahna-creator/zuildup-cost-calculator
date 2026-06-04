@@ -35,6 +35,8 @@ export interface LeadRowExpandedLead {
   nqr_reason_text?: string | null
   restart_date?: string | null
   callback_at?: string | null
+  // Bucket D (2026-06-04) — pipeline timeline
+  estimated_closure_bucket?: string | null
   // jsonb of original form-submission fields (varies by lead source)
   fields?: Record<string, any> | null
 }
@@ -342,6 +344,7 @@ export default function LeadRowExpanded({
                 nqr_reason: lead.nqr_reason ?? null,
                 restart_date: lead.restart_date ?? null,
                 callback_at: lead.callback_at ?? null,
+                estimated_closure_bucket: lead.estimated_closure_bucket ?? null,
               }}
               onSave={async (payload) => {
                 const r = await changeStatus(lead.id, payload)

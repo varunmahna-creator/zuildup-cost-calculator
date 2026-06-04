@@ -30,7 +30,12 @@ import {
   type LossReason,
   type JunkReason,
 } from '@/lib/format'
-import type { ChangeStatusPayload } from '@/lib/leadApi'
+import {
+  CLOSURE_BUCKETS,
+  CLOSURE_BUCKET_LABEL,
+  type ChangeStatusPayload,
+  type ClosureBucket,
+} from '@/lib/leadApi'
 
 interface Current {
   status_top?: string | null
@@ -43,6 +48,7 @@ interface Current {
   nqr_reason_text?: string | null
   restart_date?: string | null
   callback_at?: string | null
+  estimated_closure_bucket?: string | null
 }
 
 interface Props {
@@ -82,6 +88,12 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
   // through to the backend, which appends it to the callback_scheduled
   // activity note so it surfaces in Recent Activity.
   const [callbackComment, setCallbackComment] = useState<string>('')
+  // Bucket D (2026-06-04) — required when status_top=Qualified and the lead
+  // is not being closed (sub_status not Won/Lost). Pre-seed from the
+  // current lead so re-saves don't force the SPOC to re-pick.
+  const [closureBucket, setClosureBucket] = useState<string>(
+    (current?.estimated_closure_bucket as string) || ''
+  )
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -105,6 +117,9 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     setCallbackAt('')
     setCallbackComment('')
     setMsg(null)
+    // Note: closureBucket intentionally NOT reset here — we keep the existing
+    // value when toggling status_top. The validator only enforces it for
+    // Qualified (non-Won/Lost).
   }
 
   function chooseSub(s: string) {
@@ -154,8 +169,13 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     if (sub === 'Call back later') {
       if (!callbackAt) return 'Pick a callback date & time'
     }
+    // Bucket D (2026-06-04) — pipeline timeline mandatory at Qualified
+    // (except Won/Lost terminals).
+    if (top === 'Qualified' && sub && sub !== 'Won' && sub !== 'Lost' && !closureBucket) {
+      return 'Pick an expected closure timeline'
+    }
     return null
-  }, [top, sub, lossReason, lossReasonText, junkReason, restartDate, callbackAt])
+  }, [top, sub, lossReason, lossReasonText, junkReason, restartDate, callbackAt, closureBucket])
 
   const canSave = validationError === null && !saving
 
@@ -182,6 +202,10 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     if (NQ_FREE_TEXT_ONLY.has(sub)) {
       if (nqrReasonText.trim()) p.nqr_reason_text = nqrReasonText.trim()
       if (sub === 'No Immediate Req' && restartDate) p.restart_date = restartDate
+    }
+    if (top === 'Qualified' && sub !== 'Won' && sub !== 'Lost' && closureBucket) {
+      // Bucket D (2026-06-04) — pipeline timeline mandatory at Qualified.
+      p.estimated_closure_bucket = closureBucket as ClosureBucket
     }
     if (top === 'Attempted') {
       // sub_status doubles as attempt_reason in the API contract.
@@ -259,6 +283,31 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
               {s}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Bucket D (2026-06-04) — Qualified non-terminal requires a
+          pipeline timeline. Renders right under sub-status row so it
+          flows naturally with the cascading picker. */}
+      {top === 'Qualified' && sub && sub !== 'Won' && sub !== 'Lost' && (
+        <div className="space-y-1.5 bg-emerald-50 border border-emerald-200 rounded p-3">
+          <label className="block text-xs font-medium text-gray-700">
+            Expected closure timeline *
+          </label>
+          <select
+            value={closureBucket}
+            onChange={(e) => setClosureBucket(e.target.value)}
+            name="estimated_closure_bucket"
+            className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+          >
+            <option value="">Pick a timeline…</option>
+            {CLOSURE_BUCKETS.map((b) => (
+              <option key={b} value={b}>{CLOSURE_BUCKET_LABEL[b]}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-gray-500">
+            Required for Qualified leads — shown in the Pipeline tab so the team can plan capacity.
+          </p>
         </div>
       )}
 

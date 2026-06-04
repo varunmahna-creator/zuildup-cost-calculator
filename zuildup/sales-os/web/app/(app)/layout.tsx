@@ -40,6 +40,9 @@ export default async function AppLayout({
                   <MessageSquare className="w-4 h-4" />
                   Inbox
                 </Link>
+                <Link href="/pipeline" className="text-gray-700 hover:text-gray-900">
+                  Pipeline
+                </Link>
                 {(user.role === 'admin' || user.role === 'director') && (
                   <>
                     <Link href="/leads" className="text-gray-700 hover:text-gray-900">
