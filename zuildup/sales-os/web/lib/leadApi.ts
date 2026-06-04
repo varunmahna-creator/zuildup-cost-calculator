@@ -42,6 +42,7 @@ export interface ChangeStatusPayload {
   // round-trip — until then API returns 'invalid-sub_status'.
   attempt_reason?: string
   callback_at?: string // ISO timestamp
+  callback_comment?: string // Bucket B (2026-06-04) — optional context shown in Recent Activity
 }
 
 export interface OverrideTierPayload {
@@ -216,7 +217,7 @@ export interface LeadActivity {
 
 export async function fetchLeadActivities(
   leadId: string,
-  limit = 5
+  limit = 200
 ): Promise<LeadActivity[]> {
   if (!INBOX_API) return []
   try {

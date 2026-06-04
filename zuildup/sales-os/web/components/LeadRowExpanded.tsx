@@ -108,7 +108,7 @@ export default function LeadRowExpanded({
     let cancelled = false
     setLoading(true)
     Promise.all([
-      fetchLeadActivities(lead.id, 5),
+      fetchLeadActivities(lead.id),
       lead.related_count && lead.related_count > 0
         ? fetchPriorSubmissions(lead.id)
         : Promise.resolve([] as PriorSubmission[]),
@@ -296,7 +296,9 @@ export default function LeadRowExpanded({
           })()}
         </div>
 
-        {/* MIDDLE: Prior submissions */}
+        {/* MIDDLE: Prior submissions — Bucket B item 5 (2026-06-04):
+            clicking a prior row expands the panel inline to show that prior
+            lead's activities. Fetched lazily on first expand. */}
         <div className="space-y-3 lg:col-span-1">
           {lead.related_count && lead.related_count > 0 ? (
             <div className="bg-white rounded border border-gray-200 p-3">
@@ -308,23 +310,9 @@ export default function LeadRowExpanded({
               ) : priors.length === 0 ? (
                 <p className="text-xs text-gray-400 italic">No earlier submissions found.</p>
               ) : (
-                <ul className="space-y-1">
+                <ul className="space-y-1 max-h-[420px] overflow-y-auto">
                   {priors.map((p) => (
-                    <li key={p.id} className="text-sm">
-                      <Link
-                        href={`/leads?open=${p.id}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        {p.lead_source || 'unknown'} · {formatDate(p.created_at)}
-                      </Link>
-                      {(p.status_top || p.status) && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          {p.status_top}
-                          {p.sub_status ? ` / ${p.sub_status}` : ''}
-                          {!p.status_top && p.status ? p.status : ''}
-                        </span>
-                      )}
-                    </li>
+                    <PriorSubmissionRow key={p.id} prior={p} />
                   ))}
                 </ul>
               )}
@@ -341,18 +329,22 @@ export default function LeadRowExpanded({
           )}
         </div>
 
-        {/* RIGHT: Last 5 activities */}
+        {/* RIGHT: Recent activity — Bucket B item 4 (2026-06-04):
+            shows ALL activities (no pagination); outer container scrolls,
+            and any long-text entry scrolls in-row instead of truncating. */}
         <div className="space-y-3 lg:col-span-1">
           <div className="bg-white rounded border border-gray-200 p-3">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Recent activity
+              Recent activity {activities.length > 0 && (
+                <span className="ml-1 text-[10px] font-normal text-gray-400">({activities.length})</span>
+              )}
             </h4>
             {loading ? (
               <p className="text-xs text-gray-400 italic">Loading…</p>
             ) : activities.length === 0 ? (
               <p className="text-xs text-gray-400 italic">No activities yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                 {activities.map((a) => (
                   <li key={a.id} className="flex gap-2 text-sm">
                     <span className="text-base leading-tight">
@@ -366,10 +358,16 @@ export default function LeadRowExpanded({
                         </span>
                       </div>
                       {a.outcome && (
-                        <p className="text-xs text-gray-600 truncate">Outcome: {a.outcome}</p>
+                        <p className="text-xs text-gray-600 break-words">Outcome: {a.outcome}</p>
                       )}
                       {a.note && (
-                        <p className="text-xs text-gray-700 line-clamp-2">{a.note}</p>
+                        a.note.length > 200 ? (
+                          <div className="text-xs text-gray-700 whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-gray-50 rounded px-1.5 py-1 mt-0.5">
+                            {a.note}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{a.note}</p>
+                        )
                       )}
                       {a.user_name && (
                         <p className="text-[10px] text-gray-400">by {a.user_name}</p>
@@ -386,11 +384,105 @@ export default function LeadRowExpanded({
             leadId={lead.id}
             onLogged={() => {
               // Re-fetch the activities list so the new entry shows up.
-              fetchLeadActivities(lead.id, 5).then((acts) => setActivities(acts))
+              fetchLeadActivities(lead.id).then((acts) => setActivities(acts))
             }}
           />
         </div>
       </div>
     </div>
+  )
+}
+
+
+// ─── Prior submission row (Bucket B item 5, 2026-06-04) ─────────────────────
+// Renders a single prior-submission link; clicking the chevron expands an
+// inline activities panel for that prior lead. Lazy-fetches activities on
+// first expand. Each open row is independent (no shared open-state).
+function PriorSubmissionRow({ prior }: { prior: PriorSubmission }) {
+  const [open, setOpen] = useState(false)
+  const [activities, setActivities] = useState<LeadActivity[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function toggle() {
+    const next = !open
+    setOpen(next)
+    // Lazy-load on first open only.
+    if (next && activities === null && !loading) {
+      setLoading(true)
+      try {
+        const acts = await fetchLeadActivities(prior.id)
+        setActivities(acts)
+      } catch {
+        setActivities([])
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
+  return (
+    <li className="text-sm">
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse prior submission activities' : 'Expand prior submission activities'}
+          className="text-gray-400 hover:text-gray-600 w-4 shrink-0"
+        >
+          {open ? '▾' : '▸'}
+        </button>
+        <Link
+          href={`/leads?open=${prior.id}`}
+          className="text-blue-600 hover:underline"
+        >
+          {prior.lead_source || 'unknown'} · {formatDate(prior.created_at)}
+        </Link>
+        {(prior.status_top || prior.status) && (
+          <span className="ml-1 text-xs text-gray-500">
+            {prior.status_top}
+            {prior.sub_status ? ` / ${prior.sub_status}` : ''}
+            {!prior.status_top && prior.status ? prior.status : ''}
+          </span>
+        )}
+      </div>
+      {open && (
+        <div className="mt-1 ml-5 border-l-2 border-gray-200 pl-3">
+          {loading ? (
+            <p className="text-[11px] text-gray-400 italic">Loading activities…</p>
+          ) : !activities || activities.length === 0 ? (
+            <p className="text-[11px] text-gray-400 italic">No activities recorded.</p>
+          ) : (
+            <ul className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+              {activities.map((a) => (
+                <li key={a.id} className="flex gap-1.5 text-xs">
+                  <span className="leading-tight">{ACTIVITY_ICONS[a.type] || '•'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between gap-2">
+                      <span className="font-medium text-gray-800 truncate">{a.type}</span>
+                      <span className="text-[10px] text-gray-500 shrink-0">
+                        {formatDateTime(a.created_at)}
+                      </span>
+                    </div>
+                    {a.note && (
+                      a.note.length > 200 ? (
+                        <div className="text-[11px] text-gray-700 whitespace-pre-wrap break-words max-h-24 overflow-y-auto bg-gray-50 rounded px-1.5 py-1">
+                          {a.note}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-700 whitespace-pre-wrap break-words">{a.note}</p>
+                      )
+                    )}
+                    {a.user_name && (
+                      <p className="text-[10px] text-gray-400">by {a.user_name}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </li>
   )
 }

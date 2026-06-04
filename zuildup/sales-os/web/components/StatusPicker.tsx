@@ -78,6 +78,10 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
   const [nqrReasonText, setNqrReasonText] = useState<string>(current?.nqr_reason_text || '')
   const [restartDate, setRestartDate] = useState<string>(current?.restart_date || '')
   const [callbackAt, setCallbackAt] = useState<string>(toLocalInput(current?.callback_at))
+  // Bucket B (2026-06-04) — optional context for 'Call back later'. Plumbed
+  // through to the backend, which appends it to the callback_scheduled
+  // activity note so it surfaces in Recent Activity.
+  const [callbackComment, setCallbackComment] = useState<string>('')
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -99,6 +103,7 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
     setNqrReasonText('')
     setRestartDate('')
     setCallbackAt('')
+    setCallbackComment('')
     setMsg(null)
   }
 
@@ -188,6 +193,10 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
       if ((sub === 'Call back later' || ATTEMPTED_CALLBACK_SUBS.has(sub)) && callbackAt) {
         // Convert the local datetime input → ISO (toISOString in UTC)
         p.callback_at = new Date(callbackAt).toISOString()
+        // Bucket B (2026-06-04) — only send comment for explicit 'Call back later'.
+        if (sub === 'Call back later' && callbackComment.trim()) {
+          p.callback_comment = callbackComment.trim()
+        }
       }
     }
     return p
@@ -351,6 +360,24 @@ export default function StatusPicker({ leadId, current, onSave }: Props) {
               ? 'Required — sales will be reminded at this time.'
               : 'Set a follow-up time; we’ll surface it on the dashboard.'}
           </p>
+          {/* Bucket B (2026-06-04) — optional comments for 'Call back later'.
+              When saved, backend appends this to the auto-logged
+              callback_scheduled activity so the next SPOC sees the context. */}
+          {sub === 'Call back later' && (
+            <>
+              <label className="block text-xs font-medium text-gray-700 pt-2">
+                Comments / Context (optional)
+              </label>
+              <textarea
+                value={callbackComment}
+                onChange={(e) => setCallbackComment(e.target.value)}
+                placeholder="e.g. customer asked to call after 6pm, wants to discuss layout options"
+                rows={2}
+                name="callback_comment"
+                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+              />
+            </>
+          )}
         </div>
       )}
 
