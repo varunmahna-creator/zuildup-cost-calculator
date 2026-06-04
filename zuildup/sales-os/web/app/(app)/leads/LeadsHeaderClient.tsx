@@ -5,7 +5,8 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { FilterBar } from '@/components/FilterBar'
 import { SortDropdown } from '@/components/SortDropdown'
 import ManualLeadModal from '@/components/ManualLeadModal'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Download } from 'lucide-react'
+import { downloadLeadsXlsx } from '@/lib/leadApi'
 
 interface Props {
   leadSources: string[]
@@ -24,6 +25,20 @@ export default function LeadsHeaderClient({ leadSources, assignees, currentUserR
   // Backend listLeadsPaginated already does ILIKE %q% — we just wire the
   // URL ?q= param with a debounced controlled input.
   const [q, setQ] = useState(searchParams.get('q') || '')
+
+  // Bucket-C (2026-06-04) item 14 — admin-only Excel export.
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError(null)
+    const r = await downloadLeadsXlsx()
+    setExporting(false)
+    if (!r.ok) {
+      setExportError(r.error || 'Export failed')
+      setTimeout(() => setExportError(null), 5000)
+    }
+  }
   // Sales feedback 2026-05-29 (Bug 6): show a tiny spinner inside the search
   // box while the debounced search is firing, so SPOCs know typing
   // registered. Uses startTransition around the router.refresh() so the
@@ -87,6 +102,19 @@ export default function LeadsHeaderClient({ leadSources, assignees, currentUserR
         </div>
         <div className="flex items-center gap-2">
           <SortDropdown />
+          {/* Bucket-C item 14 — admin-only Excel download. */}
+          {currentUserRole === 'admin' && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+              title="Download all leads (admin only). Excludes soft-deleted rows."
+            >
+              <Download className="w-3 h-3" />
+              {exporting ? 'Preparing…' : 'Download Excel'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setModalOpen(true)}
@@ -96,6 +124,9 @@ export default function LeadsHeaderClient({ leadSources, assignees, currentUserR
             New Lead
           </button>
         </div>
+        {exportError && (
+          <span className="text-xs text-rose-600 ml-2">{exportError}</span>
+        )}
       </div>
       <FilterBar
         leadSources={leadSources}

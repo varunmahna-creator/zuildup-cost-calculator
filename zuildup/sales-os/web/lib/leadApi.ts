@@ -287,6 +287,94 @@ export interface PriorMatch {
   created_at: string
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Bucket-C 2026-06-04 — admin/director powers + Excel export.
+// Items 7 / 8 / 9 / 14 from sales-team feedback.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Item 7. PATCH /leads/:id/name — admin/director only. */
+export async function renameLead(
+  leadId: string,
+  newName: string,
+): Promise<ApiResult> {
+  if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
+  try {
+    const r = await inboxFetch(`${INBOX_API}/leads/${encodeURIComponent(leadId)}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: newName }),
+    })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) return { ok: false, error: json?.error || `HTTP ${r.status}`, status: r.status }
+    return { ok: true, ...json }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** Item 8. DELETE /leads/:id — soft-delete (admin/director only). */
+export async function softDeleteLead(leadId: string): Promise<ApiResult> {
+  if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
+  try {
+    const r = await inboxFetch(`${INBOX_API}/leads/${encodeURIComponent(leadId)}`, {
+      method: 'DELETE',
+    })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) return { ok: false, error: json?.error || `HTTP ${r.status}`, status: r.status }
+    return { ok: true, ...json }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** Item 9. POST /leads/bulk-assign — admin/director only. Cap 100 ids. */
+export async function bulkAssignLeads(
+  leadIds: string[],
+  assignedTo: string,
+): Promise<ApiResult & { assigned?: number; skipped?: number; assigneeName?: string }> {
+  if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
+  try {
+    const r = await inboxFetch(`${INBOX_API}/leads/bulk-assign`, {
+      method: 'POST',
+      body: JSON.stringify({ lead_ids: leadIds, assigned_to: assignedTo }),
+    })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) return { ok: false, error: json?.error || `HTTP ${r.status}`, status: r.status }
+    return { ok: true, ...json }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** Item 14. GET /admin/leads/export.xlsx — admin only. Triggers download. */
+export async function downloadLeadsXlsx(): Promise<{ ok: boolean; error?: string }> {
+  if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
+  try {
+    const r = await inboxFetch(`${INBOX_API}/admin/leads/export.xlsx`)
+    if (!r.ok) {
+      let errText = `HTTP ${r.status}`
+      try { const j = await r.json(); if (j?.error) errText = j.error } catch { /* not json */ }
+      return { ok: false, error: errText }
+    }
+    const blob = await r.blob()
+    // Best-effort filename from Content-Disposition; fallback to today's date.
+    const cd = r.headers.get('Content-Disposition') || ''
+    const m = /filename="([^"]+)"/.exec(cd)
+    const filename = m?.[1] || `zuildup-leads-${new Date().toISOString().slice(0, 10)}.xlsx`
+    const a = document.createElement('a')
+    const objUrl = URL.createObjectURL(blob)
+    a.href = objUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+
 export async function fetchLeadsByPhone(phone: string): Promise<PriorMatch[]> {
   if (!INBOX_API) return []
   const cleaned = phone.replace(/[^\d+]/g, '')

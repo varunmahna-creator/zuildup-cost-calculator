@@ -99,6 +99,13 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         page={page}
         pageSize={PAGE_SIZE}
         totalCount={totalCount}
+        currentUserRole={user.role}
+        // Bucket-C (2026-06-04) item 9 — bulk-assign dropdown source.
+        // Spec: "active spoc+director, NOT admins". Admins manage the team
+        // but shouldn't get leads assigned to them in the round-robin sense.
+        assignableUsers={users
+          .filter((u: any) => u.active !== false && u.role !== 'admin')
+          .map((u: any) => ({ id: u.id, name: u.name, role: u.role }))}
       />
 
       {/* Pagination */}
