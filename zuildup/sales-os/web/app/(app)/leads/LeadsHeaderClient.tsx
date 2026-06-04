@@ -10,9 +10,11 @@ import { Plus, Search } from 'lucide-react'
 interface Props {
   leadSources: string[]
   assignees: { id: string; name: string }[]
+  // Bucket-A 2026-06-04 (item 13): role for assignee-filter gating.
+  currentUserRole?: 'admin' | 'director' | 'spoc' | string
 }
 
-export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
+export default function LeadsHeaderClient({ leadSources, assignees, currentUserRole }: Props) {
   const [modalOpen, setModalOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
@@ -99,6 +101,7 @@ export default function LeadsHeaderClient({ leadSources, assignees }: Props) {
         leadSources={leadSources}
         assignees={assignees}
         showDateRange
+        currentUserRole={currentUserRole}
       />
       <ManualLeadModal
         open={modalOpen}

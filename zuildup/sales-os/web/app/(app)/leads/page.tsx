@@ -88,6 +88,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <LeadsHeaderClient
         leadSources={[]}
         assignees={users.map((u) => ({ id: u.id, name: u.name }))}
+        currentUserRole={user.role}
       />
 
       <LeadsListClient
