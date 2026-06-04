@@ -249,7 +249,18 @@ export async function fetchPriorSubmissions(
     const r = await inboxFetch(`${INBOX_API}/leads/${leadId}`)
     if (!r.ok) return []
     const json = await r.json()
-    return (json?.lead?.prior_submissions || []) as PriorSubmission[]
+    // Bucket B (2026-06-04): the API returns prior_submissions at the TOP
+    // LEVEL of the response, not on json.lead. Older code looked at
+    // json.lead.prior_submissions and always got [] — so the panel never
+    // populated. Keep both lookups so we round-trip whether the server
+    // ever moves the field. (Matches inbox-api/index.js handleGetLead +
+    // shared-db/index.js getLeadById return shape:
+    //   { ok, lead, activities, comms, prior_submissions })
+    const priors =
+      (json?.prior_submissions as PriorSubmission[] | undefined) ||
+      (json?.lead?.prior_submissions as PriorSubmission[] | undefined) ||
+      []
+    return priors
   } catch {
     return []
   }
