@@ -92,6 +92,10 @@ interface Props {
   canOverrideTier?: boolean
   userRole?: string
   onStatusSaved?: () => void
+  // Bucket-C (2026-06-04) items 7 & 8 — pencil-edit name & soft-delete buttons.
+  // Either `userRole` (legacy alias) or `currentUserRole` may carry the role.
+  currentUserRole?: string
+  onLeadDeleted?: () => void
 }
 
 export default function LeadRowExpanded({
@@ -99,10 +103,87 @@ export default function LeadRowExpanded({
   canOverrideTier,
   userRole,
   onStatusSaved,
+  currentUserRole,
+  onLeadDeleted,
 }: Props) {
+  const effectiveRole = currentUserRole || userRole || (canOverrideTier ? 'admin' : 'spoc')
+  const isAdminOrDirector = effectiveRole === 'admin' || effectiveRole === 'director'
   const [activities, setActivities] = useState<LeadActivity[]>([])
   const [priors, setPriors] = useState<PriorSubmission[]>([])
   const [loading, setLoading] = useState(true)
+
+  // ── Bucket-C (2026-06-04) item 7 — inline edit lead name ────────────────
+  // displayName is THE source of truth for what's rendered, seeded from the
+  // prop but updatable optimistically. We deliberately AVOID the
+  // state-from-prop antipattern (MEMORY.md 2026-05-29): the only sync from
+  // prop to state is the *first* mount (initial state) and an explicit
+  // resetEffect on lead.id change (i.e. when a different lead is opened).
+  // We don't sync on every prop change — that would clobber in-flight edits.
+  const [displayName, setDisplayName] = useState<string>(lead.name || '')
+  useEffect(() => {
+    setDisplayName(lead.name || '')
+    // Reset edit/delete UI when the row changes underneath us.
+    setEditingName(false)
+    setDraftName('')
+    setNameSaving(false)
+    setNameError(null)
+    setDeleteOpen(false)
+    setDeleteConfirmText('')
+    setDeleting(false)
+    setDeleteError(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id])
+  const [editingName, setEditingName] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const startEditName = () => {
+    setDraftName(displayName)
+    setNameError(null)
+    setEditingName(true)
+  }
+  const cancelEditName = () => {
+    setEditingName(false)
+    setDraftName('')
+    setNameError(null)
+  }
+  const saveName = async () => {
+    const trimmed = draftName.trim()
+    if (!trimmed) { setNameError('Name cannot be empty.'); return }
+    if (trimmed === displayName) { setEditingName(false); return }
+    setNameSaving(true)
+    setNameError(null)
+    const { renameLead } = await import('@/lib/leadApi')
+    const r = await renameLead(lead.id, trimmed)
+    setNameSaving(false)
+    if (!r.ok) {
+      setNameError(r.error || 'Failed to save')
+      return
+    }
+    setDisplayName(trimmed)
+    setEditingName(false)
+    // Refresh activity log so the new "name_changed" entry appears.
+    fetchLeadActivities(lead.id).then(setActivities).catch(() => {})
+  }
+
+  // ── Bucket-C (2026-06-04) item 8 — soft-delete with type-DELETE confirm ─
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const runDelete = async () => {
+    setDeleting(true)
+    setDeleteError(null)
+    const { softDeleteLead } = await import('@/lib/leadApi')
+    const r = await softDeleteLead(lead.id)
+    setDeleting(false)
+    if (!r.ok) {
+      setDeleteError(r.error || 'Failed to delete')
+      return
+    }
+    setDeleteOpen(false)
+    onLeadDeleted?.()
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -136,10 +217,65 @@ export default function LeadRowExpanded({
               Contact
             </h4>
             <dl className="text-sm space-y-1">
-              <div className="flex gap-2">
-                <dt className="text-gray-500 w-20 shrink-0">Name</dt>
+              <div className="flex gap-2 items-start">
+                <dt className="text-gray-500 w-20 shrink-0 pt-0.5">Name</dt>
                 <dd className="text-gray-900 flex-1">
-                  {lead.name || <span className="text-gray-400 italic">—</span>}
+                  {editingName ? (
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); saveName() }
+                          if (e.key === 'Escape') { e.preventDefault(); cancelEditName() }
+                        }}
+                        maxLength={200}
+                        className="border border-gray-300 rounded px-2 py-0.5 text-sm w-full max-w-[260px]"
+                        disabled={nameSaving}
+                        aria-label="Lead name"
+                      />
+                      <div className="flex items-center gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={saveName}
+                          disabled={nameSaving || !draftName.trim()}
+                          className="px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {nameSaving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditName}
+                          disabled={nameSaving}
+                          className="px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        {nameError && <span className="text-rose-600">{nameError}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>{displayName || <span className="text-gray-400 italic">—</span>}</span>
+                      {isAdminOrDirector && (
+                        <button
+                          type="button"
+                          onClick={startEditName}
+                          aria-label="Edit lead name"
+                          title="Edit lead name (admin/director)"
+                          className="text-gray-400 hover:text-indigo-600"
+                        >
+                          {/* lucide-react Pencil icon, inlined to avoid bundle bloat */}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/>
+                          </svg>
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </dd>
               </div>
               <div className="flex gap-2">
@@ -389,6 +525,71 @@ export default function LeadRowExpanded({
           />
         </div>
       </div>
+
+      {/* Bucket-C (2026-06-04) item 8 — soft-delete (admin/director only). */}
+      {isAdminOrDirector && (
+        <div className="mt-4 pt-3 border-t border-rose-100 flex justify-end">
+          <button
+            type="button"
+            onClick={() => { setDeleteOpen(true); setDeleteConfirmText(''); setDeleteError(null); }}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-rose-600 text-white rounded hover:bg-rose-700"
+            aria-label="Delete this lead"
+            title="Soft-delete this lead (admin/director only)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Delete lead
+          </button>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5">
+            <h3 className="text-lg font-semibold text-rose-700">Delete this lead?</h3>
+            <p className="mt-2 text-sm text-gray-700">
+              This will soft-delete <span className="font-semibold">{displayName || '(unnamed)'}</span>.
+              The row will disappear from all views; the underlying record stays in the database
+              with a <code className="bg-gray-100 px-1 rounded">deleted_at</code> timestamp.
+            </p>
+            <p className="mt-3 text-sm text-gray-700">
+              Type <code className="bg-gray-100 px-1 rounded font-mono">DELETE</code> to confirm:
+            </p>
+            <input
+              type="text"
+              autoFocus
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="mt-2 w-full border border-gray-300 rounded px-3 py-1.5 text-sm font-mono uppercase"
+              placeholder="DELETE"
+              disabled={deleting}
+            />
+            {deleteError && (
+              <p className="mt-2 text-sm text-rose-600">{deleteError}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setDeleteOpen(false); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                className="px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={runDelete}
+                disabled={deleting || deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+                className="px-3 py-1.5 bg-rose-600 text-white rounded text-sm font-medium hover:bg-rose-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

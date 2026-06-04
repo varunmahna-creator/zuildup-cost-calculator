@@ -8,6 +8,7 @@ import type { Lead } from '@/lib/inboxApiServer'
 import LeadRowExpanded from '@/components/LeadRowExpanded'
 import ManualLeadModal from '@/components/ManualLeadModal'
 import type { ManualLeadResponse } from '@/lib/leadApi'
+import { bulkAssignLeads } from '@/lib/leadApi'
 
 interface UserLite {
   id: string
@@ -22,6 +23,11 @@ interface Props {
   page?: number
   pageSize?: number
   totalCount?: number
+  // Bucket-C (2026-06-04): role-gated checkboxes + bulk-assign + pencil + delete.
+  currentUserRole?: 'admin' | 'director' | 'spoc' | string
+  // Users eligible to be bulk-assigned (active spoc + director, NOT admins).
+  // Provided by the server component so we don't refetch on the client.
+  assignableUsers?: { id: string; name: string; role: string }[]
 }
 
 // Border colour by `status_top` (Lane B field) — fall back to legacy mapping
@@ -101,7 +107,10 @@ export default function LeadsListClient({
   page = 1,
   pageSize = 50,
   totalCount = 0,
+  currentUserRole,
+  assignableUsers = [],
 }: Props) {
+  const isAdminOrDirector = currentUserRole === 'admin' || currentUserRole === 'director'
   const router = useRouter()
   const search = useSearchParams()
 
@@ -121,6 +130,68 @@ export default function LeadsListClient({
   }, [initialLeads])
   const [modalOpen, setModalOpen] = useState(false)
   const [newLeadFlash, setNewLeadFlash] = useState<string | null>(null)
+
+  // Bucket-C (2026-06-04) item 9 — bulk-assign state.
+  // selectedIds is a Set of lead.id strings restricted to the currently-rendered
+  // page (cleared on every prop sync — selection doesn't survive filter/page change).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkAssignee, setBulkAssignee] = useState<string>('')
+  const [bulkPending, setBulkPending] = useState(false)
+  const [bulkFlash, setBulkFlash] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  useEffect(() => {
+    // Reset selection whenever the underlying list changes (page nav / filters).
+    setSelectedIds(new Set())
+    setBulkFlash(null)
+  }, [initialLeads])
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+  const allSelected = leads.length > 0 && leads.every((l) => selectedIds.has(l.id))
+  const someSelected = !allSelected && leads.some((l) => selectedIds.has(l.id))
+  const togglePage = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (leads.every((l) => prev.has(l.id))) {
+        // All are selected → clear all of this page.
+        const next = new Set(prev)
+        leads.forEach((l) => next.delete(l.id))
+        return next
+      }
+      const next = new Set(prev)
+      leads.forEach((l) => next.add(l.id))
+      return next
+    })
+  }, [leads])
+  const runBulkAssign = useCallback(async () => {
+    if (!bulkAssignee) return
+    if (selectedIds.size === 0) return
+    if (selectedIds.size > 100) {
+      setBulkFlash({ kind: 'err', text: 'Max 100 leads per bulk-assign.' })
+      return
+    }
+    setBulkPending(true)
+    setBulkFlash(null)
+    const result = await bulkAssignLeads(Array.from(selectedIds), bulkAssignee)
+    setBulkPending(false)
+    if (!result.ok) {
+      setBulkFlash({ kind: 'err', text: `Bulk-assign failed: ${result.error}` })
+      return
+    }
+    const name = result.assigneeName || 'selected user'
+    setBulkFlash({
+      kind: 'ok',
+      text: `${result.assigned ?? selectedIds.size} lead(s) assigned to ${name}.` +
+            (result.skipped ? ` (${result.skipped} skipped)` : ''),
+    })
+    setSelectedIds(new Set())
+    setBulkAssignee('')
+    router.refresh()
+    setTimeout(() => setBulkFlash(null), 5000)
+  }, [bulkAssignee, selectedIds, router])
 
   // Sync openId ↔ ?open=
   const updateOpenParam = useCallback(
@@ -257,6 +328,60 @@ export default function LeadsListClient({
         </div>
       </div>
 
+      {/* Bucket-C (2026-06-04) item 9: admin/director-only bulk-assign bar. */}
+      {isAdminOrDirector && (selectedIds.size > 0 || bulkFlash) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded text-sm">
+          <span className="font-medium text-indigo-900">
+            {selectedIds.size} selected
+          </span>
+          {selectedIds.size > 0 && (
+            <>
+              <label className="text-gray-700" htmlFor="bulk-assignee">Assign to:</label>
+              <select
+                id="bulk-assignee"
+                value={bulkAssignee}
+                onChange={(e) => setBulkAssignee(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+                disabled={bulkPending}
+              >
+                <option value="">— choose —</option>
+                {assignableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.role === 'director' ? '(director)' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={runBulkAssign}
+                disabled={!bulkAssignee || bulkPending}
+                className="px-3 py-1 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {bulkPending ? 'Assigning…' : 'Assign'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSelectedIds(new Set()); setBulkAssignee(''); }}
+                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          {bulkFlash && (
+            <span
+              className={
+                bulkFlash.kind === 'ok'
+                  ? 'ml-auto text-emerald-700'
+                  : 'ml-auto text-rose-700'
+              }
+            >
+              {bulkFlash.text}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         {leads.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-500 text-sm">
@@ -267,6 +392,17 @@ export default function LeadsListClient({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 font-medium">
                 <tr>
+                  {isAdminOrDirector && (
+                    <th scope="col" className="px-3 py-2 text-left w-8">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all on page"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected }}
+                        onChange={togglePage}
+                      />
+                    </th>
+                  )}
                   <th scope="col" className="px-3 py-2 text-left w-12">S.No</th>
                   <th scope="col" className="px-3 py-2 text-left">Name</th>
                   <th scope="col" className="px-3 py-2 text-left">Phone</th>
@@ -293,6 +429,19 @@ export default function LeadsListClient({
                         className={`cursor-pointer hover:bg-gray-50 ${isOpen ? 'bg-blue-50' : ''}`}
                         aria-expanded={isOpen}
                       >
+                        {isAdminOrDirector && (
+                          <td
+                            className="px-3 py-2 text-sm w-8"
+                            onClick={(e) => { e.stopPropagation() }}
+                          >
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${lead.name || lead.id}`}
+                              checked={selectedIds.has(lead.id)}
+                              onChange={() => toggleOne(lead.id)}
+                            />
+                          </td>
+                        )}
                         <td className={`px-3 py-2 text-sm text-gray-500 tabular-nums border-l-4 ${borderColor(lead)}`}>
                           {serial}
                         </td>
@@ -355,7 +504,7 @@ export default function LeadsListClient({
                       </tr>
                       {isOpen && (
                         <tr className="bg-blue-50/40">
-                          <td colSpan={11} className="px-0 py-0">
+                          <td colSpan={isAdminOrDirector ? 12 : 11} className="px-0 py-0">
                             <LeadRowExpanded
                               lead={{
                                 id: lead.id,
@@ -372,7 +521,14 @@ export default function LeadsListClient({
                                 fields: (lead as any).fields,
                               }}
                               canOverrideTier={canOverrideTier}
+                              currentUserRole={currentUserRole}
                               onStatusSaved={handleStatusSaved}
+                              onLeadDeleted={() => {
+                                setLeads((prev) => prev.filter((x) => x.id !== lead.id))
+                                setOpenId(null)
+                                updateOpenParam(null)
+                                router.refresh()
+                              }}
                             />
                           </td>
                         </tr>
