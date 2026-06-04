@@ -33,6 +33,14 @@ export interface FilterBarProps {
    */
   showDateRange?: boolean
   className?: string
+  // Bucket-A 2026-06-04 (item 13): role-gate the Assignee filter.
+  //   - role='spoc'              -> hide assignee filter entirely (their
+  //                                 scope is hard-bound assigned_only via
+  //                                 RBAC in listLeadsPaginated)
+  //   - role='admin'|'director'  -> show full list + an "Unassigned" pseudo
+  //                                 option that maps to assigned_to=unassigned
+  //                                 sentinel handled server-side.
+  currentUserRole?: 'admin' | 'director' | 'spoc' | string
 }
 
 const QS_KEYS = {
@@ -61,6 +69,7 @@ export function FilterBar({
   assignees = [],
   showDateRange = true,
   className = '',
+  currentUserRole,
 }: FilterBarProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -202,12 +211,19 @@ export function FilterBar({
         </FilterGroup>
       )}
 
-      {assignees.length > 0 && (
+      {assignees.length > 0 && currentUserRole !== 'spoc' && (
         <FilterGroup label="Assignee">
+          {/* Bucket-A 2026-06-04 (item 13): inject 'unassigned' sentinel
+              so admin/director can filter to assigned_to IS NULL rows.
+              Backend listLeadsPaginated already treats 'unassigned' as a
+              special token (pre-existing QoL sprint 2 behaviour). */}
           <DropdownMulti
             placeholder="Anyone"
-            options={assignees.map((a) => a.id)}
-            labels={Object.fromEntries(assignees.map((a) => [a.id, a.name]))}
+            options={['unassigned', ...assignees.map((a) => a.id)]}
+            labels={{
+              unassigned: 'Unassigned',
+              ...Object.fromEntries(assignees.map((a) => [a.id, a.name])),
+            }}
             selected={selAssignee}
             onToggle={(v) => toggleMulti(QS_KEYS.assignee, v)}
           />

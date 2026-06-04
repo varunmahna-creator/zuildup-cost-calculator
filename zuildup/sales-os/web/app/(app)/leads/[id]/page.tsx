@@ -48,6 +48,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const canDispose = user.role === 'admin' || user.role === 'director' || lead.assigned_to === user.id
   const ageInDays = lead.date_received ? ageDays(lead.date_received) : (lead.created_at ? ageDays(lead.created_at) : 0)
   const nextDue = formatDateRelative(lead.next_action_due)
+  // Bucket-A 2026-06-04 (item 12): hide Next Action UI for terminal
+  // statuses (Not Qualified / Junk / Closed Won / Closed Lost /
+  // Duplicate). A pending next-action on a closed-out lead is stale by
+  // definition.
+  const _topStatus = String(lead.status_top || '').trim()
+  const _subStatus = String(lead.sub_status || '').trim()
+  const _legacyStatus = String(lead.status || '').trim()
+  const isTerminalLead = (
+    _topStatus === 'Not Qualified'
+    || ['Lost', 'Closed Won', 'Closed Lost', 'Duplicate', 'Junk'].includes(_subStatus)
+    || ['Junk', 'Lost', 'Closed Won', 'Closed Lost'].includes(_legacyStatus)
+  )
 
   const grouped: Record<string, any[]> = {}
   activities.forEach((a) => {
@@ -203,9 +215,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 callback_at: lead.callback_at ?? null,
               }}
             />
-            <div className="mt-3 text-xs text-gray-500">
-              Next action: <span className={nextDue.className}>{nextDue.text}</span>
-            </div>
+            {!isTerminalLead && (
+              <div className="mt-3 text-xs text-gray-500">
+                Next action: <span className={nextDue.className}>{nextDue.text}</span>
+              </div>
+            )}
             {/* Item 2 (feedback 2026-05-25): inline collapsible activity logger
                 in the right column, using the existing <ActivityLogger /> form. */}
             {canDispose && (

@@ -78,6 +78,21 @@ function tierPillClass(tier: string | null | undefined): string {
   return 'bg-zinc-100 text-zinc-800'
 }
 
+
+// Bucket-A 2026-06-04 (item 12): hide Next Action UI for terminal-status
+// leads. Terminal = status_top='Not Qualified' OR sub_status in the
+// closed-out set. Mirrors the backend listTeamActions exclusion list.
+function isTerminalStatus(lead: any): boolean {
+  const top = String(lead?.status_top || '').trim()
+  const sub = String(lead?.sub_status || '').trim()
+  const legacy = String(lead?.status || '').trim()
+  if (top === 'Not Qualified') return true
+  if (['Lost', 'Closed Won', 'Closed Lost', 'Duplicate', 'Junk'].includes(sub)) return true
+  // Legacy flat-status leads (pre-status_top) that landed as Junk/Lost.
+  if (['Junk', 'Lost', 'Closed Won', 'Closed Lost'].includes(legacy)) return true
+  return false
+}
+
 export default function LeadsListClient({
   leads: initialLeads,
   users,
@@ -328,8 +343,8 @@ export default function LeadsListClient({
                             <span className="text-gray-400 italic">unassigned</span>
                           )}
                         </td>
-                        <td className={`px-3 py-2 text-sm ${nextDue.className}`}>
-                          {nextDue.text}
+                        <td className={`px-3 py-2 text-sm ${isTerminalStatus(lead) ? 'text-gray-300' : nextDue.className}`}>
+                          {isTerminalStatus(lead) ? <span className="text-gray-300">—</span> : nextDue.text}
                         </td>
                         <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
                           {formatDate(lead.created_at)}

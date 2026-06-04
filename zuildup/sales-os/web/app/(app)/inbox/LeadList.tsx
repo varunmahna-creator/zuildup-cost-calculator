@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { inboxFetch } from '@/lib/inboxAuth'
 import { formatDate } from '@/lib/format'
-import { MessageSquare, Mail, StickyNote, Phone } from 'lucide-react'
+import { MessageSquare, Mail, StickyNote, Phone, Search, X } from 'lucide-react'
 
 export interface InboxLead {
   id: string
@@ -85,7 +85,20 @@ export function LeadList({ onSelect, selectedId }: Props) {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const cancelledRef = useRef(false)
+  // Bucket-A 2026-06-04 (item 11): inbox search across name / phone / email.
+  // Local state + debounced 300ms re-fetch with ?q= param. Empty input
+  // → no q param, behaves identical to pre-2026-06-04.
+  const [q, setQ] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  const [searching, setSearching] = useState(false)
 
+  // Debounce typing → debouncedQ.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300)
+    return () => clearTimeout(t)
+  }, [q])
+
+  // Initial + every-30s + on-search-change reload.
   useEffect(() => {
     cancelledRef.current = false
     const load = async () => {
@@ -95,7 +108,9 @@ export function LeadList({ onSelect, selectedId }: Props) {
           setLoading(false)
           return
         }
-        const r = await inboxFetch(`${INBOX_API}/inbox/leads?limit=50`)
+        setSearching(true)
+        const qParam = debouncedQ ? `&q=${encodeURIComponent(debouncedQ)}` : ''
+        const r = await inboxFetch(`${INBOX_API}/inbox/leads?limit=50${qParam}`)
         if (!r.ok) {
           const t = await r.text()
           throw new Error(`HTTP ${r.status}: ${t.slice(0, 120)}`)
@@ -108,68 +123,107 @@ export function LeadList({ onSelect, selectedId }: Props) {
         if (cancelledRef.current) return
         setErr(e instanceof Error ? e.message : String(e))
       } finally {
-        if (!cancelledRef.current) setLoading(false)
+        if (!cancelledRef.current) {
+          setLoading(false)
+          setSearching(false)
+        }
       }
     }
     load()
-    const id = setInterval(load, 30_000)
+    // Pause auto-refresh while a search is active so we don't clobber the
+    // user's filtered view every 30s.
+    const id = debouncedQ ? null : setInterval(load, 30_000)
     return () => {
       cancelledRef.current = true
-      clearInterval(id)
+      if (id) clearInterval(id)
     }
-  }, [])
-
-  if (loading) {
-    return <div className="p-4 text-sm text-gray-500">Loading leads…</div>
-  }
+  }, [debouncedQ])
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 sticky top-0">
-        <div className="flex items-center justify-between">
+      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold text-gray-700">Inbox</h2>
           <span className="text-xs text-gray-500">{leads.length}</span>
         </div>
-      </div>
-      {err && (
-        <div className="m-2 p-2 text-xs bg-red-50 text-red-700 border border-red-200 rounded">
-          {err}
-        </div>
-      )}
-      <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
-        {leads.length === 0 && !err && (
-          <li className="p-4 text-sm text-gray-400">No conversations yet.</li>
-        )}
-        {leads.map((l) => {
-          const isSel = selectedId === l.id
-          const label = l.name || l.phone || l.email || 'Unnamed'
-          return (
-            <li
-              key={l.id}
-              onClick={() => onSelect(l.id)}
-              className={`p-3 cursor-pointer hover:bg-gray-50 ${
-                isSel ? 'bg-blue-50 border-l-2 border-blue-500' : ''
-              }`}
+        {/* Bucket-A 2026-06-04 (item 11): search input. Hits inbox-api
+            /inbox/leads?q=… (ILIKE name/email/phone + digit-only suffix
+            match on phone). */}
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by name, phone, email…"
+            className="w-full pl-7 pr-7 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            aria-label="Search inbox"
+          />
+          {searching && q && (
+            <span
+              className="absolute right-7 top-1/2 -translate-y-1/2 inline-block w-3 h-3 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+              aria-label="Searching"
+            />
+          )}
+          {q && !searching && (
+            <button
+              type="button"
+              onClick={() => setQ('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              aria-label="Clear search"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-sm text-gray-900 truncate">{label}</span>
-                <ChannelBadge channel={l.last_channel} />
-              </div>
-              <p className="text-xs text-gray-500 truncate mt-0.5">
-                {(l.last_body || '(no messages yet)').slice(0, 60)}
-              </p>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] text-gray-400">{relTime(l.last_received_at)}</span>
-                {l.tier_hint === 'A' && (
-                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                    Tier-A
-                  </span>
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      {loading && leads.length === 0 ? (
+        <div className="p-4 text-sm text-gray-500">Loading leads…</div>
+      ) : (
+        <>
+          {err && (
+            <div className="m-2 p-2 text-xs bg-red-50 text-red-700 border border-red-200 rounded">
+              {err}
+            </div>
+          )}
+          <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
+            {leads.length === 0 && !err && (
+              <li className="p-4 text-sm text-gray-400">
+                {debouncedQ ? `No matches for "${debouncedQ}".` : 'No conversations yet.'}
+              </li>
+            )}
+            {leads.map((l) => {
+              const isSel = selectedId === l.id
+              const label = l.name || l.phone || l.email || 'Unnamed'
+              return (
+                <li
+                  key={l.id}
+                  onClick={() => onSelect(l.id)}
+                  className={`p-3 cursor-pointer hover:bg-gray-50 ${
+                    isSel ? 'bg-blue-50 border-l-2 border-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-sm text-gray-900 truncate">{label}</span>
+                    <ChannelBadge channel={l.last_channel} />
+                  </div>
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                    {(l.last_body || '(no messages yet)').slice(0, 60)}
+                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] text-gray-400">{relTime(l.last_received_at)}</span>
+                    {l.tier_hint === 'A' && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                        Tier-A
+                      </span>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
     </div>
   )
 }
