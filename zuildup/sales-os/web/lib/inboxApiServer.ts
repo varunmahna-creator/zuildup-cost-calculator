@@ -191,7 +191,7 @@ export type PipelineLeadCard = {
   assigned_to_name: string | null
   status_top: string | null
   sub_status: string | null
-  estimated_closure_bucket: string | null
+  estimated_closure_bucket: '<1m' | '1-3m' | '>3m' | null
   last_activity_at: string | null
   next_action_type: string | null
   next_action_text: string | null
