@@ -6,6 +6,7 @@
 
 import { SignJWT } from 'jose'
 import { createClient } from './supabase/server'
+import { isSourceBucket, expandSourceBuckets } from './sourceBuckets'
 
 const API_URL = process.env.NEXT_PUBLIC_INBOX_API_URL || 'https://zuildup-inbox-api-oyrq7o3czq-el.a.run.app'
 const JWT_SECRET = process.env.INBOX_JWT_SECRET
@@ -119,12 +120,18 @@ export type ListLeadsResponse = {
 export async function getLeadsList(params: {
   q?: string
   status?: string
-  status_top?: string
-  sub_status?: string
-  assigned_to?: string
-  lead_source?: string
-  partner?: string  // 2026-05-27: top-filter partner bucket (y2g | zu | organic)
-  tier_hint?: string
+  status_top?: string | string[]
+  sub_status?: string | string[]
+  assigned_to?: string | string[]
+  /**
+   * Either a single raw lead_source value, an array of raw values, OR
+   * one/more SourceBucket names (Meta/Google/Referral). When bucket names
+   * are passed, they're expanded server-side to the matching raw values
+   * via /leads/sources + SOURCE_BUCKET_RULES (sales feedback 2026-06-05).
+   */
+  lead_source?: string | string[]
+  partner?: string | string[]  // 2026-05-27: top-filter partner bucket (y2g | zu | organic)
+  tier_hint?: string | string[]
   created_from?: string
   created_to?: string
   sort?: string
@@ -132,10 +139,72 @@ export async function getLeadsList(params: {
   limit?: number | string
 }): Promise<ListLeadsResponse | null> {
   const qs = new URLSearchParams()
+  // Source-bucket expansion (Meta/Google/Referral → raw lead_source values).
+  // We do this here so every caller of getLeadsList benefits uniformly.
+  const rawSources = await expandLeadSourceParam(params.lead_source)
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== '') qs.set(k, String(v))
+    if (k === 'lead_source') continue  // handled below
+    if (v === undefined || v === null || v === '') continue
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item !== undefined && item !== null && item !== '') qs.append(k, String(item))
+      }
+    } else {
+      qs.set(k, String(v))
+    }
+  }
+  if (rawSources && rawSources.length > 0) {
+    // Backend listLeadsPaginated accepts repeated ?lead_source=A&lead_source=B
+    // OR a single comma-joined value. Use repeated form (cleaner, no escaping
+    // worries).
+    for (const s of rawSources) qs.append('lead_source', s)
   }
   return inboxApiGet<ListLeadsResponse>(`/leads?${qs.toString()}`)
+}
+
+/**
+ * Convert a `lead_source` filter param (which may be a bucket name like
+ * "Meta", a raw value like "google_lead_form", or an array mixing both)
+ * into the flat list of raw lead_source values to send to inbox-api.
+ *
+ * If none of the inputs are bucket names, we pass them through as-is.
+ * If any input is a bucket name, we fetch /leads/sources once to learn
+ * which raw values are currently present in the DB and expand them
+ * via SOURCE_BUCKET_RULES (prefix + exact match).
+ *
+ * Returns null if no filter should be applied.
+ */
+async function expandLeadSourceParam(
+  v: string | string[] | undefined | null,
+): Promise<string[] | null> {
+  if (v == null) return null
+  const arr = Array.isArray(v) ? v : [v]
+  const cleaned = arr.map((x) => String(x).trim()).filter(Boolean)
+  if (cleaned.length === 0) return null
+
+  const hasBucket = cleaned.some((x) => isSourceBucket(x))
+  if (!hasBucket) return cleaned
+
+  // Split into bucket names vs raw passthroughs.
+  const buckets = cleaned.filter((x) => isSourceBucket(x))
+  const rawPassthroughs = cleaned.filter((x) => !isSourceBucket(x))
+
+  // Fetch the live source catalog so prefix-match works for newly-added
+  // campaign IDs (e.g. a new meta_lead_form_999999999999 lands tomorrow
+  // and is auto-bucketed under Meta without a code change).
+  let known: string[] = []
+  try {
+    const srcResp = await getLeadSources()
+    known = (srcResp?.sources || []).map((s) => s.lead_source).filter(Boolean)
+  } catch (e) {
+    // If the catalog call fails, fall back to bucket-rule exact matches only.
+    console.error('[inboxApiServer] expandLeadSourceParam: getLeadSources failed', e)
+  }
+
+  const expanded = expandSourceBuckets(buckets, known) || []
+  // Merge bucket-expanded set with any raw passthroughs.
+  const out = new Set<string>([...expanded, ...rawPassthroughs])
+  return Array.from(out)
 }
 
 export async function getLeadDetail(id: string) {

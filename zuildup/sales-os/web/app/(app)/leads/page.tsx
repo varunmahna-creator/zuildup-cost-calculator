@@ -1,5 +1,6 @@
 import { requireRole } from '@/lib/auth'
 import { getLeadsList, getUsers } from '@/lib/inboxApiServer'
+import { SOURCE_BUCKETS } from '@/lib/sourceBuckets'
 import Link from 'next/link'
 import LeadsListClient from './LeadsListClient'
 import LeadsHeaderClient from './LeadsHeaderClient'
@@ -7,23 +8,36 @@ import PartnerFilterChips from './PartnerFilterChips'
 
 export const dynamic = 'force-dynamic'
 
+// Next 15 RSC search params: a key with repeated values arrives as string[].
+// Always normalise to string[] so multi-select filters work end-to-end.
+type SP = string | string[] | undefined
+
 interface SearchParams {
-  assigned_to?: string
-  status?: string
-  status_top?: string
-  sub_status?: string
-  q?: string
-  lead_source?: string
-  tier_hint?: string
-  tier?: string  // FilterBar uses 'tier' key
-  source?: string  // FilterBar uses 'source' key for lead_source
-  assignee?: string  // FilterBar uses 'assignee' key for assigned_to
-  partner?: string  // Top-filter partner key (y2g | zu)
-  from?: string
-  to?: string
-  sort?: string
-  page?: string
-  open?: string
+  assigned_to?: SP
+  status?: SP
+  status_top?: SP
+  sub_status?: SP
+  q?: SP
+  lead_source?: SP
+  tier_hint?: SP
+  tier?: SP  // FilterBar uses 'tier' key
+  source?: SP  // FilterBar uses 'source' key for lead_source (Meta/Google/Referral bucket OR raw)
+  assignee?: SP  // FilterBar uses 'assignee' key for assigned_to
+  partner?: SP  // Top-filter partner key (y2g | zu)
+  from?: SP
+  to?: SP
+  sort?: SP
+  page?: SP
+  open?: SP
+}
+
+function first(v: SP): string | undefined {
+  if (v == null) return undefined
+  return Array.isArray(v) ? v[0] : v
+}
+function arrayify(v: SP): string[] | undefined {
+  if (v == null) return undefined
+  return Array.isArray(v) ? v : [v]
 }
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -31,27 +45,30 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const params = await searchParams
 
   const PAGE_SIZE = 50
-  const page = Math.max(1, parseInt(params.page || '1', 10))
+  const page = Math.max(1, parseInt(first(params.page) || '1', 10))
 
   // FilterBar uses 'source'/'assignee'/'tier' query keys; legacy form uses lead_source/assigned_to/tier_hint.
   // Accept either for forward-compat with both lanes' deep links.
-  const leadSource = params.source ?? params.lead_source
-  const assignedTo = params.assignee ?? params.assigned_to
-  const tier = params.tier ?? params.tier_hint
+  // Sales feedback 2026-06-05: ?source= now accepts SourceBucket names
+  // (Meta/Google/Referral) which get expanded server-side in getLeadsList
+  // to the underlying raw lead_source values via /leads/sources catalog.
+  const leadSource = arrayify(params.source) ?? arrayify(params.lead_source)
+  const assignedTo = arrayify(params.assignee) ?? arrayify(params.assigned_to)
+  const tier = arrayify(params.tier) ?? arrayify(params.tier_hint)
 
   const [leadsResp, usersResp] = await Promise.all([
     getLeadsList({
-      q: params.q,
-      status: params.status,
-      status_top: params.status_top,
-      sub_status: params.sub_status,
+      q: first(params.q),
+      status: first(params.status),
+      status_top: first(params.status_top),
+      sub_status: first(params.sub_status),
       assigned_to: assignedTo,
       lead_source: leadSource,
-      partner: params.partner,
+      partner: first(params.partner),
       tier_hint: tier,
-      created_from: params.from,
-      created_to: params.to,
-      sort: params.sort,
+      created_from: first(params.from),
+      created_to: first(params.to),
+      sort: first(params.sort),
       page,
       limit: PAGE_SIZE,
     }),
@@ -83,10 +100,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <PartnerFilterChips />
 
       {/* Lane E FilterBar + SortDropdown header (replaces Lane D's inline form).
-          leadSources intentionally empty: campaign-level Source dropdown was hiding
-          the same campaign IDs as the old top pills — sales team doesn't need it. */}
+          Sales feedback 2026-06-05 (Varun, #zuildup-marketing-engine): the old
+          campaign-level Source dropdown was redundant with the top partner pills
+          AND too granular (every campaign ID became a chip). Replaced with a
+          coarse Meta/Google/Referral taxonomy — see lib/sourceBuckets.ts. Server-
+          side getLeadsList() expands these bucket names to the underlying raw
+          lead_source values via /leads/sources before hitting inbox-api. */}
       <LeadsHeaderClient
-        leadSources={[]}
+        leadSources={[...SOURCE_BUCKETS]}
         assignees={users.map((u) => ({ id: u.id, name: u.name }))}
         currentUserRole={user.role}
       />
@@ -95,7 +116,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         leads={leads}
         users={users.map((u) => ({ id: u.id, name: u.name }))}
         canOverrideTier={canOverrideTier}
-        initialOpen={params.open ?? null}
+        initialOpen={first(params.open) ?? null}
         page={page}
         pageSize={PAGE_SIZE}
         totalCount={totalCount}
