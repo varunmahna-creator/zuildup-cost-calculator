@@ -37,16 +37,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-KGF6CDD3');</script>
 <!-- End Google Tag Manager -->
 
-<!-- Google Tag (gtag.js) — direct AW loader for AWCT independence from GTM (2026-06-10 Iraaj conversion-tracking repair) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-17987079509"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-17987079509');
-</script>
-<!-- End Google Tag (gtag.js) -->
-
 <!-- Meta Pixel -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -1100,10 +1090,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         // 'lead_submit' is the canonical event name GTM trigger 43 listens for —
         // it fires GA4 generate_lead (tag 35) + Google Ads AWCT conversion (tag 8).
         // Fix 2026-06-04: was 'iraaj_lead_submit' which matched no trigger ⇒ 0 conversions.
-        // Fix 2026-06-10 (Iraaj): GTM trigger 43 wasn't firing in real browsers despite
-        // correct wiring (only 0 AWCT conv on 24 form fills since 2026-06-04). Adding direct
-        // gtag('event','conversion',...) below as the primary AWCT path. lead_submit dataLayer
-        // event stays for GA4 generate_lead + redundancy.
         window.dataLayer.push({
           event: 'lead_submit',
           lead_id: (document.getElementById('event_id_hint')||{}).value || ('lp_' + Date.now()),
@@ -1112,18 +1098,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           currency: 'INR',
           lead_city: fd.get('city')
         });
-        // Direct AWCT call — bypasses GTM trigger 43, fires conversion via gtag.js loaded in <head>.
-        // send_to value mirrors conversion action AW-17987079509/-elzCPTnjIIcENWa9IBD (Submit lead form, id 7520596980).
-        try {
-          if (typeof gtag === 'function') {
-            gtag('event', 'conversion', {
-              'send_to': 'AW-17987079509/-elzCPTnjIIcENWa9IBD',
-              'value': 500,
-              'currency': 'INR',
-              'transaction_id': (document.getElementById('event_id_hint')||{}).value || ('lp_' + Date.now())
-            });
-          }
-        } catch(_){}
         if(window.fbq){
           fbq('track','Lead',{
             content_name:'IRAAJ Form Submission',
