@@ -258,14 +258,21 @@ export type PipelineLeadCard = {
   email: string | null
   assigned_to: string | null
   assigned_to_name: string | null
+  // 2026-06-10 (iraaj): added status/lead_source/tier_hint/fields so the
+  // inline LeadRowExpanded panel in PipelineBoardClient has the data it
+  // needs to render disposition controls + form-field rows.
+  status: string
   status_top: string | null
   sub_status: string | null
+  lead_source: string | null
+  tier_hint: string | null
   estimated_closure_bucket: '<1m' | '1-3m' | '>3m' | null
   last_activity_at: string | null
   next_action_type: string | null
   next_action_text: string | null
   next_action_due: string | null
   created_at: string
+  fields?: Record<string, unknown> | null
 }
 
 export type PipelineResponse = {
