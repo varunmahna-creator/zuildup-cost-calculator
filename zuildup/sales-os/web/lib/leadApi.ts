@@ -373,14 +373,18 @@ export interface PipelineLead {
   email: string | null
   assigned_to: string | null
   assigned_to_name: string | null
+  status: string
   status_top: string | null
   sub_status: string | null
+  lead_source: string | null
+  tier_hint: string | null
   estimated_closure_bucket: ClosureBucket | null
   last_activity_at: string | null
   next_action_type: string | null
   next_action_text: string | null
   next_action_due: string | null
   created_at: string
+  fields?: Record<string, unknown> | null
 }
 
 export interface PipelineResponse {
@@ -423,11 +427,71 @@ export async function updateClosureBucket(
   }
 }
 
-/** Item 14. GET /admin/leads/export.xlsx — admin only. Triggers download. */
-export async function downloadLeadsXlsx(): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Item 14. GET /admin/leads/export.xlsx — admin only. Triggers download.
+ *
+ * 2026-06-10 (iraaj — sales feedback): now respects active filters. Pass
+ * the current URLSearchParams (or any URLSearchParams-shaped object) and
+ * the matching subset of filter params is forwarded to inbox-api. Backend
+ * mirrors the filter contract of /leads (q, status_top, sub_status,
+ * lead_source, partner, tier_hint, assigned_to, date_from, date_to).
+ *
+ * Note: legacy callers (no arg) still work — they'll download all leads.
+ */
+export type LeadExportFilters = URLSearchParams | { [k: string]: string | string[] | undefined } | null | undefined
+
+const EXPORT_FILTER_KEYS = [
+  'q',
+  'status', 'status_top', 'sub_status',
+  'lead_source', 'source',           // FilterBar uses `source`; inbox-api accepts `lead_source`
+  'partner',
+  'tier_hint', 'tier',               // FilterBar uses `tier`; backend uses `tier_hint`
+  'assigned_to', 'assignee',         // FilterBar uses `assignee`; backend uses `assigned_to`
+  'date_from', 'date_to',
+  'from', 'to',                      // FilterBar uses from/to; backend accepts date_from/date_to or these
+  'created_from', 'created_to',
+] as const
+
+function _buildExportQS(filters: LeadExportFilters): string {
+  if (!filters) return ''
+  const out = new URLSearchParams()
+
+  // Read each whitelisted key, supporting both URLSearchParams (multi-value)
+  // and plain objects.
+  const isSP = (typeof URLSearchParams !== 'undefined' && filters instanceof URLSearchParams)
+  for (const key of EXPORT_FILTER_KEYS) {
+    let vals: string[] = []
+    if (isSP) {
+      vals = (filters as URLSearchParams).getAll(key).filter(Boolean)
+    } else {
+      const v = (filters as { [k: string]: string | string[] | undefined })[key]
+      if (v == null) vals = []
+      else if (Array.isArray(v)) vals = v.filter(Boolean)
+      else if (typeof v === 'string' && v.trim()) vals = [v.trim()]
+    }
+    if (vals.length === 0) continue
+
+    // Frontend → backend key mapping.
+    let outKey = key as string
+    if (key === 'source')   outKey = 'lead_source'
+    if (key === 'tier')     outKey = 'tier_hint'
+    if (key === 'assignee') outKey = 'assigned_to'
+    if (key === 'from')     outKey = 'date_from'
+    if (key === 'to')       outKey = 'date_to'
+
+    for (const v of vals) out.append(outKey, v)
+  }
+  const qs = out.toString()
+  return qs ? `?${qs}` : ''
+}
+
+export async function downloadLeadsXlsx(
+  filters?: LeadExportFilters,
+): Promise<{ ok: boolean; error?: string }> {
   if (!INBOX_API) return { ok: false, error: 'no inbox base configured' }
   try {
-    const r = await inboxFetch(`${INBOX_API}/admin/leads/export.xlsx`)
+    const qs = _buildExportQS(filters)
+    const r = await inboxFetch(`${INBOX_API}/admin/leads/export.xlsx${qs}`)
     if (!r.ok) {
       let errText = `HTTP ${r.status}`
       try { const j = await r.json(); if (j?.error) errText = j.error } catch { /* not json */ }

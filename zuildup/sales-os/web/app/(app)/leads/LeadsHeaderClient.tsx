@@ -32,7 +32,11 @@ export default function LeadsHeaderClient({ leadSources, assignees, currentUserR
   const handleExport = async () => {
     setExporting(true)
     setExportError(null)
-    const r = await downloadLeadsXlsx()
+    // 2026-06-10 (iraaj): pass active filters so backend exports only the
+    // matching rows. searchParams is already wired by FilterBar / sort / q,
+    // so we just forward it as-is. Backend translates source→lead_source,
+    // tier→tier_hint, assignee→assigned_to, from→date_from, to→date_to.
+    const r = await downloadLeadsXlsx(searchParams)
     setExporting(false)
     if (!r.ok) {
       setExportError(r.error || 'Export failed')
